@@ -1,0 +1,912 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Notepad</title>
+<script>
+(function(){var t='dark';try{var v=JSON.parse(localStorage.getItem('np.theme'));if(v)t=v}catch(e){}
+var r=t==='system'?(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):t;
+document.documentElement.setAttribute('data-theme',r)})();
+</script>
+<style>
+:root{
+  --ui:"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+  --mono:Consolas,"Cascadia Mono","SF Mono",Menlo,"DejaVu Sans Mono",monospace;
+  --fs:14.67px;
+}
+:root[data-theme=dark]{
+  color-scheme:dark;
+  --strip:#1f1f1f; --chrome:#2b2b2b; --editor:#272727;
+  --fg:#f5f5f5; --fg2:#cfcfcf; --fg3:#9a9a9a;
+  --hover:rgba(255,255,255,.065); --press:rgba(255,255,255,.04); --line:rgba(255,255,255,.085);
+  --flyout:#2c2c2c; --flyout-line:#454545; --shadow:0 8px 24px rgba(0,0,0,.45),0 0 0 1px rgba(0,0,0,.35);
+  --accent:#60cdff; --accent-bg:#4cc2ff; --accent-fg:#000; --sel:#2f5f93;
+  --find:rgba(255,205,0,.30); --find-cur:rgba(255,140,0,.65);
+  --thumb:rgba(255,255,255,.42); --card:rgba(255,255,255,.045); --ok:#6ccb5f; --link:#7cb7ff;
+  --code:rgba(255,255,255,.07);
+}
+:root[data-theme=light]{
+  color-scheme:light;
+  --strip:#e7ecf4; --chrome:#f6f8fc; --editor:#fbfcfe;
+  --fg:#1b1b1b; --fg2:#444; --fg3:#7b7b7b;
+  --hover:rgba(0,0,0,.055); --press:rgba(0,0,0,.035); --line:rgba(0,0,0,.09);
+  --flyout:#fcfcfd; --flyout-line:#dcdcdc; --shadow:0 8px 24px rgba(0,0,0,.16),0 0 0 1px rgba(0,0,0,.06);
+  --accent:#005fb8; --accent-bg:#005fb8; --accent-fg:#fff; --sel:#a9d1f5;
+  --find:rgba(255,205,0,.50); --find-cur:rgba(255,140,0,.60);
+  --thumb:rgba(0,0,0,.40); --card:rgba(255,255,255,.7); --ok:#107c10; --link:#0f4fa8;
+  --code:rgba(0,0,0,.06);
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;overflow:hidden;background:var(--strip);color:var(--fg);font:14px/1.3 var(--ui);-webkit-font-smoothing:antialiased}
+[hidden]{display:none!important}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:default}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+svg.i{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round;flex:none}
+::-webkit-scrollbar{width:14px;height:14px}
+::-webkit-scrollbar-track,::-webkit-scrollbar-corner{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--thumb);border:4px solid transparent;background-clip:padding-box;border-radius:8px}
+@supports (-moz-appearance:none){*{scrollbar-width:thin;scrollbar-color:var(--thumb) transparent}}
+
+#app{position:fixed;inset:0;display:flex;flex-direction:column;background:var(--chrome)}
+
+/* ---------- title / tab strip ---------- */
+#titlebar{display:flex;align-items:flex-end;height:40px;background:var(--strip);user-select:none;flex:none;padding-left:8px}
+.appicon{align-self:center;width:20px;height:20px;margin:0 10px 0 4px;flex:none}
+.tabswrap{display:flex;align-items:flex-end;min-width:0;height:34px}
+#tabs{position:relative;display:flex;align-items:flex-end;overflow-x:auto;scrollbar-width:none;height:34px;min-width:0}
+#tabs::-webkit-scrollbar{display:none}
+.chev{width:22px;height:34px;display:grid;place-items:center;color:var(--fg2);border-radius:6px;flex:none}
+.chev:hover{background:var(--hover)}
+.chev[hidden]{display:none}
+.tab{position:relative;flex:0 0 176px;height:34px;display:flex;align-items:center;padding:0 6px 0 14px;font-size:13.5px;color:var(--fg2);border-radius:8px 8px 0 0}
+.tab::after{content:"";position:absolute;right:0;top:9px;bottom:9px;width:1px;background:var(--line)}
+.tab.active{background:var(--chrome);color:var(--fg)}
+.tab.active::after,.tab:has(+ .tab.active)::after,.tab:hover::after,.tab:last-child::after{opacity:0}
+.tab:hover:not(.active){background:var(--hover)}
+.tt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tx{width:24px;height:24px;border-radius:5px;display:grid;place-items:center;flex:none;margin-left:2px;color:var(--fg2)}
+.tx:hover{background:var(--hover)}
+.tx svg{display:none;width:12px;height:12px}
+.tab.active .tx svg,.tab:hover .tx svg{display:block}
+.mdot{display:none;width:7px;height:7px;border-radius:50%;background:var(--fg2)}
+.tx.mod .mdot{display:block}
+.tx.mod svg{display:none!important}
+.tab:hover .tx.mod .mdot{display:none}
+.tab:hover .tx.mod svg{display:block!important}
+#newtab{width:34px;height:34px;display:grid;place-items:center;border-radius:6px;color:var(--fg2);align-self:flex-end;margin:0 0 0 2px;flex:none}
+#newtab:hover{background:var(--hover)}
+.drag{flex:1;min-width:8px;height:100%}
+.wc{flex:none;width:46px;align-self:stretch;display:grid;place-items:center;color:var(--fg)}
+.wc:hover{background:var(--hover)}
+.wc.close:hover{background:#c42b1c;color:#fff}
+.wc svg{width:10px;height:10px;stroke-width:1}
+
+/* ---------- menu bar ---------- */
+#menubar{position:relative;display:flex;align-items:center;height:40px;padding:0 8px;background:var(--chrome);flex:none;user-select:none}
+.mb{height:30px;padding:0 12px;border-radius:5px;font-size:14px}
+.mb:hover,.mb.on{background:var(--hover)}
+.spacer{flex:1}
+#actions{display:flex;align-items:center;gap:6px}
+.pill{height:28px;padding:0 11px;display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:6px;background:var(--press);font-size:13px;color:var(--fg)}
+.pill:hover{background:var(--hover);border-color:var(--flyout-line)}
+.pill:active{background:var(--press)}
+.pill.done{color:var(--ok);border-color:var(--ok)}
+.icobtn{position:relative;width:32px;height:30px;display:grid;place-items:center;border-radius:5px;color:var(--fg)}
+.icobtn:hover{background:var(--hover)}
+.icobtn svg.i{width:18px;height:18px}
+.nd{position:absolute;top:3px;right:3px;width:8px;height:8px;border-radius:50%;background:#4cc2ff;border:1.5px solid var(--chrome)}
+.vsep{width:1px;height:18px;background:var(--line);margin:0 4px}
+
+/* markdown toolbar */
+#mdtools{display:none;align-items:center;gap:2px;margin-left:max(24px,12vw)}
+#mdtools.on{display:flex}
+#mdtools .tb{height:30px;min-width:32px;padding:0 8px;border-radius:5px;display:inline-flex;align-items:center;justify-content:center;gap:5px;font-size:15px}
+#mdtools .tb:hover{background:var(--hover)}
+#mdtools .tb.b{font-weight:800;font-family:Georgia,serif}
+#mdtools .tb.it{font-style:italic;font-family:Georgia,serif}
+#mdtools .tb svg.i{width:16px;height:16px}
+#mdtools .tb .sm{width:10px;height:10px}
+
+/* ---------- editor ---------- */
+#editor{position:relative;flex:1;min-height:0;background:var(--editor);border-top:1px solid var(--line)}
+#host{position:absolute;inset:0}
+.ta,#mirror,.mdview{position:absolute;inset:0;margin:0;border:0;padding:12px 18px 44px;font-family:var(--mono);font-size:var(--fs);line-height:1.32;tab-size:8;white-space:pre-wrap;overflow-wrap:break-word;overflow:auto;width:100%;height:100%}
+.nowrap .ta,.nowrap #mirror{white-space:pre;overflow-wrap:normal}
+.ta{resize:none;outline:none;background:transparent;color:var(--fg);z-index:1;display:none;caret-color:var(--fg)}
+.ta::selection{background:var(--sel);color:inherit}
+#webview{position:absolute;inset:0;display:none;z-index:1;padding:12px 18px 44px;overflow:auto;font-family:var(--mono);font-size:var(--fs);line-height:1.45;color:var(--fg)}
+#webview h1{font-size:2.05em;margin:.1em 0 .35em;line-height:1.25}
+#webview p{margin:.55em 0;max-width:46em}
+#webview .dim{color:var(--fg3)}
+#webview .row{display:flex;gap:8px;flex-wrap:wrap;margin:.9em 0}
+#mirror{color:transparent;pointer-events:none;z-index:0;display:none}
+#mirror::-webkit-scrollbar-thumb{background:transparent}
+#mirror mark{background:var(--find);color:transparent;border-radius:2px}
+#mirror mark.cur{background:var(--find-cur)}
+.mdview{display:none;white-space:normal;z-index:1;color:var(--fg)}
+.mdview h1,.mdview h2,.mdview h3,.mdview h4{margin:.75em 0 .35em;line-height:1.25}
+.mdview h1{font-size:2.05em;margin-top:.1em}.mdview h2{font-size:1.45em}.mdview h3{font-size:1.2em}
+.mdview p{margin:.5em 0}.mdview ul,.mdview ol{margin:.4em 0;padding-left:1.8em}
+.mdview pre{background:var(--code);border-radius:6px;padding:10px 12px;white-space:pre;overflow:auto;margin:.6em 0}
+.mdview code{background:var(--code);border-radius:4px;padding:0 4px}.mdview pre code{background:none;padding:0}
+.mdview a{color:var(--link)}
+
+/* find panel */
+#find{position:absolute;top:8px;right:22px;z-index:6;width:min(430px,calc(100% - 40px));background:var(--flyout);border:1px solid var(--flyout-line);border-radius:8px;box-shadow:var(--shadow);padding:6px;display:grid;grid-template-columns:minmax(0,1fr);gap:6px}
+#find[hidden]{display:none}
+.frow{display:flex;align-items:center;gap:3px}
+.fin{flex:1;min-width:0;height:30px;border:1px solid var(--line);border-bottom-color:var(--fg3);border-radius:5px;background:var(--press);color:var(--fg);padding:0 8px;font:13.5px var(--ui)}
+.fin:focus{outline:none;border-bottom:2px solid var(--accent)}
+.fin.bad{border-color:#e5484d}
+.fb{min-width:28px;height:28px;border-radius:5px;display:grid;place-items:center;font-size:12.5px;color:var(--fg2);padding:0 4px}
+.fb:hover{background:var(--hover)}
+.fb.on{background:var(--accent-bg);color:var(--accent-fg)}
+.fcount{font-size:12px;color:var(--fg3);min-width:62px;text-align:center;white-space:nowrap}
+.fbtn{height:28px;padding:0 10px;border-radius:5px;border:1px solid var(--line);background:var(--press);font-size:12.5px}
+.fbtn:hover{background:var(--hover)}
+
+/* ---------- status bar ---------- */
+#status{display:flex;align-items:center;height:30px;flex:none;background:var(--chrome);border-top:1px solid var(--line);font-size:12.5px;color:var(--fg2);user-select:none;padding:0 4px}
+#status.hide{display:none}
+.seg{padding:0 14px;height:16px;display:flex;align-items:center;gap:7px;white-space:nowrap;border-left:1px solid var(--line)}
+.seg:first-child{border-left:0}
+.seg.grow{flex:1;border-left:0}
+button.seg{height:24px;border-radius:4px}
+button.seg:hover{background:var(--hover)}
+.w1{min-width:112px}.w2{min-width:130px}.w3{min-width:80px}.w4{min-width:104px}.w5{min-width:72px}
+
+/* ---------- menus ---------- */
+.flyout{position:absolute;z-index:50;min-width:236px;background:var(--flyout);border:1px solid var(--flyout-line);border-radius:8px;box-shadow:var(--shadow);padding:4px;display:none;user-select:none}
+.flyout.show{display:block}
+.mi{position:relative;display:flex;align-items:center;height:34px;padding:0 10px 0 12px;border-radius:5px;font-size:14px;gap:12px;white-space:nowrap}
+.mi .k{margin-left:auto;color:var(--fg3);font-size:12.5px;padding-left:24px}
+.mi:hover:not(.dis){background:var(--hover)}
+.mi.dis{color:var(--fg3)}
+.mi .ck{width:14px;margin-left:-4px;margin-right:-6px;visibility:hidden}
+.mi.chk .ck{visibility:visible}
+.mh{padding:8px 12px 3px;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--fg3);cursor:default}
+.mi.sub>.flyout{overflow-y:auto}
+.msep{height:1px;background:var(--line);margin:4px 2px}
+.mi.sub::after{content:"";margin-left:auto;width:6px;height:6px;border-top:1.5px solid var(--fg2);border-right:1.5px solid var(--fg2);transform:rotate(45deg)}
+.mi.sub .flyout{left:calc(100% + 2px);top:-5px}
+.mi.sub:hover>.flyout{display:block}
+
+/* ---------- dialogs ---------- */
+.back{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.28);display:flex;justify-content:center;align-items:flex-start;padding-top:9vh}
+.dlg{background:var(--flyout);border:1px solid var(--flyout-line);border-radius:10px;box-shadow:var(--shadow);width:min(720px,94vw);max-height:80vh;display:flex;flex-direction:column;overflow:hidden}
+.dlg.sm{width:min(400px,94vw)}
+.dh{display:flex;align-items:center;padding:12px 8px 6px 18px;font-size:15px;font-weight:600}
+.dh .icobtn{margin-left:auto;width:30px}
+.db{padding:6px 18px 4px;font-size:14px;color:var(--fg2)}
+.df{display:flex;justify-content:flex-end;gap:8px;padding:14px 18px 16px;background:var(--press)}
+.btn{min-width:84px;height:32px;padding:0 14px;border-radius:5px;border:1px solid var(--line);background:var(--hover);font-size:13.5px}
+.btn:hover{background:var(--line)}
+.btn.pri{background:var(--accent-bg);border-color:var(--accent-bg);color:var(--accent-fg)}
+.btn.pri:hover{filter:brightness(1.08)}
+.sbox{display:flex;align-items:center;gap:6px;margin:6px 18px 4px;padding:0 4px 0 10px;height:38px;border:1px solid var(--line);border-bottom:2px solid var(--accent);border-radius:6px;background:var(--press);color:var(--fg3)}
+.sbox input{flex:1;min-width:0;height:100%;background:none;border:0;outline:0;color:var(--fg);font:14.5px var(--ui)}
+.tgl{min-width:30px;height:28px;border-radius:5px;font:12.5px var(--mono);color:var(--fg2)}
+.tgl:hover{background:var(--hover)}.tgl.on{background:var(--accent-bg);color:var(--accent-fg)}
+.meta{padding:4px 20px 6px;font-size:12px;color:var(--fg3)}
+.results{overflow:auto;padding:0 8px 10px;min-height:120px}
+.gh{padding:10px 12px 4px;font-size:11.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--fg3)}
+.r{display:flex;align-items:center;gap:10px;padding:0 10px;min-height:32px;border-radius:5px;cursor:default}
+.r.sel{background:var(--hover);box-shadow:inset 3px 0 0 var(--accent)}
+.r .nm{font-size:14px;white-space:nowrap}
+.r .pth{font-size:12px;color:var(--fg3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+.r .tag{font-size:11px;color:var(--fg3);border:1px solid var(--line);border-radius:10px;padding:0 7px}
+.r.hit{min-height:26px;margin-left:26px;font-family:var(--mono);font-size:12.5px;color:var(--fg2)}
+.r.hit .ln{color:var(--fg3);min-width:38px;text-align:right}
+.r.hit .tx2{white-space:pre;overflow:hidden;text-overflow:ellipsis;flex:1;min-width:0}
+.r.more{margin-left:26px;min-height:24px;font-size:12px;color:var(--accent)}
+.results mark{background:var(--find-cur);color:inherit;border-radius:2px}
+.empty{padding:28px;text-align:center;color:var(--fg3)}
+.askin{width:100%;height:34px;border:1px solid var(--line);border-bottom:2px solid var(--accent);border-radius:5px;background:var(--press);color:var(--fg);padding:0 10px;font:14px var(--ui);outline:0;margin-top:8px}
+
+/* tips flyout */
+#tips{right:60px;top:36px;width:330px;padding:12px 14px;font-size:13px}
+#tips h3{margin:0 0 6px;font-size:14px}
+#tips p{margin:6px 0;color:var(--fg2)}
+#tips table{border-collapse:collapse;width:100%;margin-top:6px}
+#tips td{padding:3px 0;color:var(--fg2)}#tips td:first-child{color:var(--fg);font-family:var(--mono);font-size:12px;white-space:nowrap;padding-right:12px}
+
+/* settings */
+#settings{position:absolute;left:0;right:0;top:40px;bottom:0;z-index:30;background:var(--chrome);overflow:auto;display:none}
+#settings.on{display:block}
+.sh{display:flex;align-items:center;gap:6px;padding:14px 22px 6px}
+.sh h1{font-size:22px;font-weight:600;margin:0 0 0 6px}
+.sb{max-width:760px;padding:6px 28px 40px}
+.sb h2{font-size:13px;font-weight:600;margin:20px 0 8px;color:var(--fg2)}
+.card{display:flex;align-items:center;gap:16px;padding:14px 16px;border:1px solid var(--line);background:var(--card);border-radius:6px;margin-bottom:4px;min-height:60px}
+.card .t{font-size:14px}.card .d{font-size:12px;color:var(--fg3);margin-top:2px}
+.card .grow{flex:1}
+.card select{height:32px;min-width:170px;border-radius:5px;border:1px solid var(--line);border-bottom-color:var(--fg3);background:var(--press);color:var(--fg);padding:0 8px;font:13.5px var(--ui)}
+.card select option{background:var(--flyout);color:var(--fg)}
+.sw{width:40px;height:20px;border-radius:10px;border:1px solid var(--fg2);position:relative;flex:none}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:12px;height:12px;border-radius:50%;background:var(--fg2);transition:.12s}
+.sw[aria-checked=true]{background:var(--accent-bg);border-color:var(--accent-bg)}
+.sw[aria-checked=true]::after{left:23px;background:var(--accent-fg)}
+.swl{font-size:13px;color:var(--fg2);min-width:28px;text-align:right}
+
+/* toast */
+#toast{position:fixed;left:50%;bottom:48px;transform:translate(-50%,12px);opacity:0;pointer-events:none;z-index:120;background:var(--flyout);border:1px solid var(--flyout-line);box-shadow:var(--shadow);border-radius:8px;padding:9px 16px;font-size:13px;transition:.18s;max-width:90vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+
+#pipHold{position:fixed;inset:0;z-index:5;display:grid;place-items:center;text-align:center;background:var(--strip);color:var(--fg2)}
+#pipHold p{margin:10px 0 16px}
+#printArea{display:none}
+@media print{
+  html,body{overflow:visible;height:auto;background:#fff}
+  #app,.back,#toast{display:none!important}
+  #printArea{display:block;white-space:pre-wrap;font:11pt/1.3 Consolas,monospace;color:#000;word-wrap:break-word}
+}
+@media (max-width:820px){
+  .pill .lbl{display:none}.pill{padding:0 8px}
+  .wc{display:none}
+  .seg.w3,.seg.w4{display:none}
+  #mdtools .tb.hide-s{display:none}
+}
+@media (max-width:520px){.seg.w5,.seg.w2{display:none}.tab{flex-basis:150px}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+ <symbol id="i-x" viewBox="0 0 16 16"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9"/></symbol>
+ <symbol id="i-plus" viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"/></symbol>
+ <symbol id="i-chl" viewBox="0 0 16 16"><path d="M10 3.5L5.5 8l4.5 4.5"/></symbol>
+ <symbol id="i-chr" viewBox="0 0 16 16"><path d="M6 3.5L10.5 8 6 12.5"/></symbol>
+ <symbol id="i-chd" viewBox="0 0 16 16"><path d="M4 6.5l4 4 4-4"/></symbol>
+ <symbol id="i-copy" viewBox="0 0 16 16"><rect x="5.5" y="5.5" width="8" height="8" rx="1.6"/><path d="M10.5 5.5V4A1.5 1.5 0 0 0 9 2.5H4A1.5 1.5 0 0 0 2.5 4v5A1.5 1.5 0 0 0 4 10.5h1.5"/></symbol>
+ <symbol id="i-copyall" viewBox="0 0 16 16"><rect x="6" y="6" width="7.5" height="7.5" rx="1.5"/><path d="M4 10.5h-.5A1.5 1.5 0 0 1 2 9V3.5A1.5 1.5 0 0 1 3.5 2H9a1.5 1.5 0 0 1 1.5 1.5V4"/><path d="M8 9.8h3.5M9.75 8v3.5"/></symbol>
+ <symbol id="i-check" viewBox="0 0 16 16"><path d="M3 8.5l3.2 3.2L13 4.8"/></symbol>
+ <symbol id="i-search" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="M10.4 10.4L14 14"/></symbol>
+ <symbol id="i-doc" viewBox="0 0 16 16"><path d="M4 1.8h5l3.2 3.2v9.2H4z"/><path d="M9 1.8V5h3.2"/></symbol>
+ <symbol id="i-up" viewBox="0 0 16 16"><path d="M4 10l4-4 4 4"/></symbol>
+ <symbol id="i-down" viewBox="0 0 16 16"><path d="M4 6l4 4 4-4"/></symbol>
+ <symbol id="i-back" viewBox="0 0 16 16"><path d="M13 8H3.5M7.5 3.5L3 8l4.5 4.5"/></symbol>
+ <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></symbol>
+ <symbol id="i-mega" viewBox="0 0 24 24"><path d="M3 10v4h3.5L14 18.5v-13L6.5 10z"/><path d="M17.5 8.5a5 5 0 0 1 0 7"/><path d="M6.5 14l1 5h2.2l-.9-3.8"/></symbol>
+ <symbol id="i-list" viewBox="0 0 16 16"><path d="M6 4h7.5M6 8h7.5M6 12h7.5"/><circle cx="2.7" cy="4" r=".6" fill="currentColor"/><circle cx="2.7" cy="8" r=".6" fill="currentColor"/><circle cx="2.7" cy="12" r=".6" fill="currentColor"/></symbol>
+ <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></symbol>
+ <symbol id="i-pip" viewBox="0 0 16 16"><rect x="1.8" y="2.8" width="12.4" height="10.4" rx="1.8"/><rect x="7.6" y="7.6" width="5" height="3.8" rx=".8" fill="currentColor" stroke="none"/></symbol>
+ <symbol id="i-min" viewBox="0 0 10 10"><path d="M0 5h10"/></symbol>
+ <symbol id="i-max" viewBox="0 0 10 10"><rect x=".5" y=".5" width="9" height="9" rx="1.2"/></symbol>
+ <symbol id="i-cls" viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10"/></symbol>
+</svg>
+
+<div id="app">
+  <header id="titlebar">
+    <svg class="appicon" viewBox="0 0 20 20" aria-hidden="true"><defs><linearGradient id="ng" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6fd0ff"/><stop offset="1" stop-color="#1c7fd0"/></linearGradient></defs><rect x="3" y="2.5" width="14" height="16" rx="2.2" fill="url(#ng)"/><rect x="3" y="2.5" width="14" height="3.6" rx="1.6" fill="#0b4f94"/><g stroke="#fff" stroke-width="1.2" stroke-linecap="round"><path d="M6 8.5h8M6 11h8M6 13.5h8M6 16h5"/></g><g fill="#dff3ff"><circle cx="6.2" cy="3.8" r=".9"/><circle cx="10" cy="3.8" r=".9"/><circle cx="13.8" cy="3.8" r=".9"/></g></svg>
+    <div class="tabswrap">
+      <button class="chev" id="tabL" hidden aria-label="Scroll tabs left"><svg class="i"><use href="#i-chl"/></svg></button>
+      <div id="tabs" role="tablist" aria-label="Open files"></div>
+      <button class="chev" id="tabR" hidden aria-label="Scroll tabs right"><svg class="i"><use href="#i-chr"/></svg></button>
+    </div>
+    <button id="newtab" title="New tab (Ctrl+N)" aria-label="New tab"><svg class="i"><use href="#i-plus"/></svg></button>
+    <div class="drag"></div>
+    <button class="wc" id="wMin" title="Minimize" aria-label="Minimize"><svg class="i"><use href="#i-min"/></svg></button>
+    <button class="wc" id="wMax" title="Maximize" aria-label="Maximize"><svg class="i"><use href="#i-max"/></svg></button>
+    <button class="wc close" id="wCls" title="Close" aria-label="Close"><svg class="i"><use href="#i-cls"/></svg></button>
+  </header>
+
+  <nav id="menubar" aria-label="Menu">
+    <button class="mb" data-menu="file">File</button>
+    <button class="mb" data-menu="edit">Edit</button>
+    <button class="mb" data-menu="view">View</button>
+    <div id="mdtools">
+      <button class="tb" data-md="h" title="Heading"><span id="hLbl">H1</span><svg class="i sm"><use href="#i-chd"/></svg></button>
+      <button class="tb" data-md="l" title="List"><svg class="i"><use href="#i-list"/></svg><svg class="i sm"><use href="#i-chd"/></svg></button>
+      <button class="tb b" data-md="b" title="Bold (Ctrl+B)">B</button>
+      <button class="tb it" data-md="i" title="Italic (Ctrl+I)">I</button>
+      <button class="tb" data-md="k" title="Link"><svg class="i"><use href="#i-link"/></svg></button>
+      <button class="tb hide-s" data-md="c" title="Code">&lt;/&gt;</button>
+    </div>
+    <div class="spacer"></div>
+    <div id="actions">
+      <button class="pill" id="copyCur" title="Copy the code of the current tab"><svg class="i"><use href="#i-copy"/></svg><span class="lbl">Copy</span></button>
+      <button class="pill" id="copyAll" title="Copy the code of every file"><svg class="i"><use href="#i-copyall"/></svg><span class="lbl">Copy all</span></button>
+      <span class="vsep"></span>
+      <button class="icobtn" id="pipBtn" title="Picture in picture — float this Notepad on top of other windows" aria-label="Picture in picture"><svg class="i"><use href="#i-pip"/></svg></button>
+      <button class="icobtn" id="tipsBtn" title="What's new &amp; shortcuts" aria-label="What's new"><svg class="i"><use href="#i-mega"/></svg><i class="nd" id="nd"></i></button>
+      <button class="icobtn" id="setBtn" title="Settings" aria-label="Settings"><svg class="i"><use href="#i-gear"/></svg></button>
+    </div>
+    <div class="flyout" id="tips">
+      <h3>Find anything, fast</h3>
+      <p>Open the <b>File</b> menu → <b>Open</b> to search file names <i>and</i> code across every assignment.</p>
+      <table>
+        <tr><td>Ctrl+O</td><td>Search all files &amp; code</td></tr>
+        <tr><td>Ctrl+Shift+F</td><td>Same, from anywhere</td></tr>
+        <tr><td>Ctrl+F / Ctrl+H</td><td>Find / replace in this file</td></tr>
+        <tr><td>Ctrl+G</td><td>Go to line</td></tr>
+        <tr><td>Ctrl+Tab</td><td>Next tab</td></tr>
+        <tr><td>Ctrl+Wheel</td><td>Zoom</td></tr>
+        <tr><td>Ctrl+Shift+C</td><td>Copy current code</td></tr>
+        <tr><td>Ctrl+Shift+A</td><td>Copy all code</td></tr>
+      </table>
+      <p style="font-size:12px;color:var(--fg3)">Your browser reserves a few shortcuts (Ctrl+N, Ctrl+W). The menus always work.</p>
+    </div>
+  </nav>
+
+  <main id="editor">
+    <div id="find" hidden>
+      <div class="frow">
+        <button class="fb" id="fTog" title="Toggle replace" aria-label="Toggle replace"><svg class="i" style="width:12px;height:12px"><use href="#i-chr"/></svg></button>
+        <input class="fin" id="fIn" placeholder="Find" spellcheck="false" autocomplete="off">
+        <button class="fb" id="fCase" title="Match case (Alt+C)">Aa</button>
+        <button class="fb" id="fRe" title="Regular expression (Alt+R)" style="font-family:var(--mono)">.*</button>
+        <button class="fb" id="fPrev" title="Previous (Shift+Enter)"><svg class="i"><use href="#i-up"/></svg></button>
+        <button class="fb" id="fNext" title="Next (Enter)"><svg class="i"><use href="#i-down"/></svg></button>
+        <span class="fcount" id="fCnt"></span>
+        <button class="fb" id="fClose" title="Close (Esc)"><svg class="i" style="width:13px;height:13px"><use href="#i-x"/></svg></button>
+      </div>
+      <div class="frow" id="fRep" hidden>
+        <span style="width:28px"></span>
+        <input class="fin" id="fRin" placeholder="Replace" spellcheck="false" autocomplete="off">
+        <button class="fbtn" id="fRone">Replace</button>
+        <button class="fbtn" id="fRall">Replace all</button>
+      </div>
+    </div>
+    <div id="host"><div id="webview"><h1>ChatGPT</h1><p>chatgpt.com does not allow itself to be shown inside another page, so it can't be embedded as a tab here.</p><p>Open it in a small window next to Notepad instead:</p><div class="row"><button class="btn pri" id="gptWin">Open ChatGPT window</button><button class="btn" id="gptTab">Open in a new browser tab</button></div><p class="dim">You sign in on chatgpt.com as usual. Nothing in this page can see your chats. If nothing opens, allow pop-ups for this page.</p></div><div id="mirror"></div><div class="mdview" id="mdview"></div></div>
+  </main>
+
+  <footer id="status">
+    <div class="seg w1" id="sPos">Ln 1, Col 1</div>
+    <div class="seg w2" id="sChars">0 characters</div>
+    <button class="seg w3" id="sType" title="Toggle formatted view">Plain text</button>
+    <div class="seg grow"></div>
+    <div class="seg w5" id="sZoom">100%</div>
+    <div class="seg w4" id="sEol">Unix (LF)</div>
+    <div class="seg w5" id="sEnc">UTF-8</div>
+  </footer>
+
+  <section id="settings" aria-label="Settings">
+    <div class="sh"><button class="icobtn" id="setBack" title="Back" aria-label="Back"><svg class="i"><use href="#i-back"/></svg></button><h1>Settings</h1></div>
+    <div class="sb">
+      <h2>Appearance</h2>
+      <div class="card"><div class="grow"><div class="t">App theme</div><div class="d">Select which app theme to display</div></div>
+        <select id="selTheme"><option value="light">Light</option><option value="dark">Dark</option><option value="system">Use system setting</option></select></div>
+      <h2>Text formatting</h2>
+      <div class="card"><div class="grow"><div class="t">Font</div><div class="d">Choose the editor font</div></div>
+        <select id="selFont"><option value="consolas">Consolas</option><option value="cascadia">Cascadia Mono</option><option value="courier">Courier New</option><option value="lucida">Lucida Console</option></select></div>
+      <div class="card"><div class="grow"><div class="t">Font size</div><div class="d">In points (Notepad default is 11)</div></div>
+        <select id="selSize"></select></div>
+      <div class="card"><div class="grow"><div class="t">Word wrap</div><div class="d">Fit text to the window width</div></div><span class="swl" id="wrapL"></span><button class="sw" id="swWrap" role="switch" aria-label="Word wrap"></button></div>
+      <h2>View</h2>
+      <div class="card"><div class="grow"><div class="t">Status bar</div><div class="d">Show line, column, zoom and encoding</div></div><span class="swl" id="statL"></span><button class="sw" id="swStat" role="switch" aria-label="Status bar"></button></div>
+      <h2>About</h2>
+      <div class="card"><div class="grow"><div class="t">Java Notepad</div><div class="d" id="aboutTxt"></div></div></div>
+    </div>
+  </section>
+</div>
+
+<div class="flyout" id="menuFile"></div>
+<div class="flyout" id="menuEdit"></div>
+<div class="flyout" id="menuView"></div>
+<div id="pipHold" hidden><div><svg class="i" style="width:34px;height:34px;color:var(--fg3)"><use href="#i-pip"/></svg><p>Notepad is floating in its own window.</p><button class="btn pri" id="pipBack">Bring it back</button></div></div>
+<div id="toast" role="status" aria-live="polite"></div>
+<pre id="printArea"></pre>
+<script type="application/json" id="data">[{"id": "fweb", "group": "Web", "path": "https://chatgpt.com", "label": "ChatGPT", "name": "ChatGPT", "md": false, "web": true, "text": ""}, {"id": "f0", "group": "Assignments 1–18", "path": "Assignments_1-18/Assignment_01/Main.java", "label": "Assignment_01 · Main.java", "name": "Main.java", "md": false, "text": "// Assignment 1 — standalone example\npublic class Main {\n    static int square(int number) { return number * number; }\n    public static void main(String[] args) {\n        String name = \"Shine\";\n        int age = 19;\n        double salary = 55000.50;\n        System.out.println(\"Name: \" + name);\n        System.out.println(\"Age: \" + age);\n        System.out.println(\"Salary: \" + salary);\n        System.out.println(\"Square of 6: \" + square(6));\n    }\n}\n"}, {"id": "f1", "group": "Assignments 1–18", "path": "Assignments_1-18/Assignment_02/Main.java", "label": "Assignment_02 · Main.java", "name": "Main.java", "md": false, "text": "// Assignment 2 — standalone example\nclass Student {\n    String name;\n    int marks;\n    Student() { this(\"Unknown\", 0); }\n    Student(String name, int marks) { this.name = name; this.marks = marks; }\n    Student(Student other) { this(other.name, other.marks); }\n    void display() { System.out.println(name + \" : \" + marks); }\n}\npublic class Main {\n    public static void main(String[] args) {\n        new Student().display();\n        Student original = new Student(\"Shine\", 95);\n        original.display();\n        new Student(original).display();\n    }\n}\n"}, {"id": "f2", "group": "Assignments 1–18", "path": "Assignments_1-18/Assignment_03/Main.java", "label": "Assignment_03 · Main.java", "name": "Main.java", "md": false, "text": "// Assignment 3 — standalone example\nclass Calculator {\n    static int count = 0;\n    int add(int a, int b) { count++; return a + b; }\n    int add(int a, int b, int c) { count++; return a + b + c; }\n    double add(double a, double b) { count++; return a + b; }\n    static void showCount() { System.out.println(\"Calls: \" + count); }\n}\npublic class Main {\n    public static void main(String[] args) {\n        Calculator c = new Calculator();\n        System.out.println(c.add(2, 3));\n        System.out.println(c.add(2, 3, 4));\n        System.out.println(c.add(2.5, 3.5));\n        Calculator.showCount();\n    }\n}\n"}, {"id": "f3", "group": "Assignments 1–18", "path": "Assignments_1-18/Assignment_04/Main.java", "label": "Assignment_04 · Main.java", "name": "Main.java", "md": false, "text": "// Assignment 4 — standalone example\npublic class Main {\n    public static void main(String[] args) {\n        String[] markStrings = {\"80\", \"90\", \"75\"};\n        int total = 0;\n        for (String text : markStrings) {\n            Integer mark = Integer.valueOf(text); // wrapper object\n            int value = mark; // auto-unboxing\n            total += value;\n            System.out.println(\"Mark: \" + mark);\n        }\n        Double average = (double) total / markStrings.length; // boxing\n        System.out.println(\"Total: \" + total);\n        System.out.println(\"Average: \" + average);\n    }\n}\n"}, {"id": "f4", "group": "Assignments 1–18", "path": "Assignments_1-18/Assignment_05/Main.java", "label": "Assignment_05 · Main.java", "name": "Main.java", "md": false, "text": "// Assignment 5 — standalone example\nimport java.util.ArrayList;\nimport java.util.Vector;\npublic class Main {\n    public static void main(String[] args) {\n        ArrayList\u003cString> tasks = new ArrayList\u003c>();\n        tasks.add(\"Study Java\");\n        tasks.add(\"Complete assignment\");\n        tasks.remove(\"Study Java\");\n        Vector\u003cString> completed = new Vector\u003c>();\n        completed.add(\"Install JDK\");\n        StringBuffer report = new StringBuffer(\"Pending tasks:\\n\");\n        for (String task : tasks) report.append(\"- \").append(task).append('\\n');\n        report.append(\"Completed tasks:\\n\");\n        for (String task : completed) report.append(\"- \").append(task).append('\\n');\n        System.out.print(report);\n    }\n}\n"}, {"id": "f5", "group": "Assignments 1–18", "path": "Assignments_1-18/Assignment_06/Main.java", "label": "Assignment_06 · Main.java", "name": "Main.java", "md": false, "text": "// Assignment 6 — standalone example\ninterface Action { void perform(); }\nclass Vehicle {\n    private String model;\n    Vehicle(String model) { this.model = model; }\n    class Details {\n        void show() { System.out.println(\"Vehicle model: \" + model); }\n    }\n}\npublic class Main {\n    public static void main(String[] args) {\n        Vehicle v = new Vehicle(\"Electric Scooter\");\n        Vehicle.Details details = v.new Details();\n        details.show();\n        Action action = new Action() {\n            public void perform() { System.out.println(\"Vehicle is starting\"); }\n        };\n        action.perform();\n    }\n}\n"}, {"id": "f6", "group": "Assignments 1–18", "path": "Assignments_1-18/Assignment_07/Main.java", "label": "Assignment_07 · Main.java", "name": "Main.java", "md": false, "text": "// Assignment 7 — standalone example\ninterface Measurable { double area(); }\nclass Shape { void describe() { System.out.println(\"Area calculation:\"); } }\nclass Circle extends Shape implements Measurable {\n    double radius;\n    Circle(double r) { radius = r; }\n    public double area() { return Math.PI * radius * radius; }\n}\nclass Rectangle extends Shape implements Measurable {\n    double width, height;\n    Rectangle(double w, double h) { width = w; height = h; }\n    public double area() { return width * height; }\n}\npublic class Main {\n    public static void main(String[] args) {\n        Measurable[] shapes = {new Circle(5), new Rectangle(4, 6)};\n        for (Measurable s : shapes) System.out.printf(\"Area: %.2f%n\", s.area());\n    }\n}\n"}, {"id": "f7", "group": "Assignments 1–18", "path": "Assignments_1-18/Assignment_08/Main.java", "label": "Assignment_08 · Main.java", "name": "Main.java", "md": false, "text": "// Assignment 8 — standalone example\nclass Employee {\n    String name;\n    int id;\n    Employee(String name, int id) { this.name = name; this.id = id; }\n    void display() { System.out.println(\"Employee: \" + name + \", ID: \" + id); }\n}\nclass Manager extends Employee {\n    String department;\n    Manager(String name, int id, String department) {\n        super(name, id);\n        this.department = department;\n    }\n    @Override void display() {\n        super.display();\n        System.out.println(\"Department: \" + department);\n    }\n}\npublic class Main {\n    public static void main(String[] args) { new Manager(\"Shine\", 101, \"IT\").display(); }\n}\n"}, {"id": "f8", "group": "Assignments 1–18", "path": "Assignments_1-18/Assignment_09/Main.java", "label": "Assignment_09 · Main.java", "name": "Main.java", "md": false, "text": "// Assignment 9 — standalone example\nfinal class ISBN {\n    final String number;\n    ISBN(String number) { this.number = number; }\n    final void show() { System.out.println(\"ISBN: \" + number); }\n}\nclass Book {\n    private final ISBN isbn;\n    String title, author;\n    double price;\n    Book(String number, String title, String author, double price) {\n        isbn = new ISBN(number); this.title = title; this.author = author; this.price = price;\n    }\n    void display() { isbn.show(); System.out.println(title + \" by \" + author + \", Rs \" + price); }\n}\npublic class Main {\n    public static void main(String[] args) {\n        new Book(\"9781234567890\", \"Java Basics\", \"A. Writer\", 499).display();\n    }\n}\n"}, {"id": "f9", "group": "Assignments 1–18", "path": "Assignments_1-18/Assignment_10/Main.java", "label": "Assignment_10 · Main.java", "name": "Main.java", "md": false, "text": "// Assignment 10 — standalone example\nabstract class Payment {\n    abstract void pay(double amount);\n    void receipt() { System.out.println(\"Transaction recorded\"); }\n}\nclass CreditCardPayment extends Payment {\n    @Override void pay(double amount) { System.out.println(\"Card payment: Rs \" + amount); }\n}\nclass UPIPayment extends Payment {\n    @Override void pay(double amount) { System.out.println(\"UPI payment: Rs \" + amount); }\n}\npublic class Main {\n    public static void main(String[] args) {\n        Payment[] payments = {new CreditCardPayment(), new UPIPayment()};\n        for (Payment p : payments) { p.pay(500); p.receipt(); }\n    }\n}\n"}, {"id": "f10", "group": "Assignments 1–18", "path": "Assignments_1-18/Assignment_11/Main.java", "label": "Assignment_11 · Main.java", "name": "Main.java", "md": false, "text": "// Assignment 11 — standalone example\ninterface Printable { void print(); }\nclass Student implements Printable {\n    String name;\n    Student(String name) { this.name = name; }\n    public void print() { System.out.println(\"Student: \" + name); }\n}\nclass Employee implements Printable {\n    String name;\n    Employee(String name) { this.name = name; }\n    public void print() { System.out.println(\"Employee: \" + name); }\n}\npublic class Main {\n    public static void main(String[] args) {\n        Printable[] entries = {new Student(\"Shine\"), new Employee(\"Rahul\")};\n        for (Printable entry : entries) entry.print();\n    }\n}\n"}, {"id": "f11", "group": "Assignments 1–18", "path": "Assignments_1-18/Assignment_12/Main.java", "label": "Assignment_12 · Main.java", "name": "Main.java", "md": false, "text": "// Assignment 12 — standalone example\nimport student.StudentInfo;\nimport faculty.FacultyInfo;\npublic class Main {\n    public static void main(String[] args) {\n        new StudentInfo(\"Shine\", 101).display();\n        new FacultyInfo(\"Dr. Rao\", \"Computer Science\").display();\n    }\n}\n"}, {"id": "f12", "group": "Assignments 1–18", "path": "Assignments_1-18/Assignment_12/student/StudentInfo.java", "label": "Assignment_12 · StudentInfo.java", "name": "StudentInfo.java", "md": false, "text": "package student;\npublic class StudentInfo {\n String name; int roll;\n public StudentInfo(String name, int roll) { this.name=name; this.roll=roll; }\n public void display() { System.out.println(\"Student: \"+name+\", Roll: \"+roll); }\n}\n"}, {"id": "f13", "group": "Assignments 1–18", "path": "Assignments_1-18/Assignment_12/faculty/FacultyInfo.java", "label": "Assignment_12 · FacultyInfo.java", "name": "FacultyInfo.java", "md": false, "text": "package faculty;\npublic class FacultyInfo {\n String name, department;\n public FacultyInfo(String name, String department) { this.name=name; this.department=department; }\n public void display() { System.out.println(\"Faculty: \"+name+\", Department: \"+department); }\n}\n"}, {"id": "f14", "group": "Assignments 1–18", "path": "Assignments_1-18/Assignment_13/Main.java", "label": "Assignment_13 · Main.java", "name": "Main.java", "md": false, "text": "// Assignment 13 — standalone example\nimport java.io.*;\npublic class Main {\n    public static void main(String[] args) {\n        String file = \"employees.txt\";\n        try (BufferedWriter w = new BufferedWriter(new FileWriter(file))) {\n            w.write(\"101,Shine,IT,45000\"); w.newLine();\n            w.write(\"102,Rahul,HR,42000\"); w.newLine();\n        } catch (IOException e) { System.out.println(\"Write error: \" + e.getMessage()); return; }\n        try (BufferedReader r = new BufferedReader(new FileReader(file))) {\n            String line;\n            while ((line = r.readLine()) != null) System.out.println(line);\n        } catch (IOException e) { System.out.println(\"Read error: \" + e.getMessage()); }\n    }\n}\n"}, {"id": "f15", "group": "Assignments 1–18", "path": "Assignments_1-18/Assignment_14/Main.java", "label": "Assignment_14 · Main.java", "name": "Main.java", "md": false, "text": "// Assignment 14 — standalone example\npublic class Main {\n    public static void main(String[] args) {\n        try {\n            try {\n                int result = 100 / 0;\n                System.out.println(result);\n            } catch (ArithmeticException e) {\n                System.out.println(\"Nested catch: division by zero\");\n            }\n            int[] amounts = {500, 1000};\n            System.out.println(amounts[5]);\n        } catch (ArrayIndexOutOfBoundsException e) {\n            System.out.println(\"Outer catch: invalid array index\");\n        } catch (Exception e) {\n            System.out.println(\"Other error: \" + e.getMessage());\n        }\n        System.out.println(\"ATM transaction demonstration finished\");\n    }\n}\n"}, {"id": "f16", "group": "Assignments 1–18", "path": "Assignments_1-18/Assignment_15/Main.java", "label": "Assignment_15 · Main.java", "name": "Main.java", "md": false, "text": "// Assignment 15 — standalone example\npublic class Main {\n    static void validatePassword(String password) throws Exception {\n        if (!\"Java@123\".equals(password)) throw new Exception(\"Invalid password\");\n        System.out.println(\"Login successful\");\n    }\n    public static void main(String[] args) {\n        try {\n            validatePassword(\"wrongPass\");\n        } catch (Exception e) {\n            System.out.println(\"Login failed: \" + e.getMessage());\n        } finally {\n            System.out.println(\"Login attempt completed\");\n        }\n    }\n}\n"}, {"id": "f17", "group": "Assignments 1–18", "path": "Assignments_1-18/Assignment_16/Main.java", "label": "Assignment_16 · Main.java", "name": "Main.java", "md": false, "text": "// Assignment 16 — standalone example\nclass UnderAgeException extends Exception {\n    UnderAgeException(String message) { super(message); }\n}\npublic class Main {\n    static void checkVotingAge(int age) throws UnderAgeException {\n        if (age \u003c 18) throw new UnderAgeException(\"Must be 18 or older\");\n        System.out.println(\"Eligible to vote\");\n    }\n    public static void main(String[] args) {\n        try { checkVotingAge(16); }\n        catch (UnderAgeException e) { System.out.println(e.getMessage()); }\n    }\n}\n"}, {"id": "f18", "group": "Assignments 1–18", "path": "Assignments_1-18/Assignment_17/Main.java", "label": "Assignment_17 · Main.java", "name": "Main.java", "md": false, "text": "// Assignment 17 — standalone example\nimport javax.swing.*;\nimport java.awt.*;\npublic class Main {\n    public static void main(String[] args) {\n        SwingUtilities.invokeLater(() -> {\n            JFrame frame = new JFrame(\"Student Registration\");\n            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);\n            frame.setLayout(new GridLayout(4, 2, 8, 8));\n            JTextField roll = new JTextField(), name = new JTextField(), email = new JTextField();\n            JButton register = new JButton(\"Register\");\n            frame.add(new JLabel(\"Roll no:\")); frame.add(roll);\n            frame.add(new JLabel(\"Name:\")); frame.add(name);\n            frame.add(new JLabel(\"Email:\")); frame.add(email);\n            frame.add(new JLabel(\"\")); frame.add(register);\n            register.addActionListener(e -> JOptionPane.showMessageDialog(frame,\n                \"Roll: \" + roll.getText() + \"\\nName: \" + name.getText() + \"\\nEmail: \" + email.getText()));\n            frame.pack(); frame.setLocationRelativeTo(null); frame.setVisible(true);\n        });\n    }\n}\n"}, {"id": "f19", "group": "Assignments 1–18", "path": "Assignments_1-18/Assignment_18/Main.java", "label": "Assignment_18 · Main.java", "name": "Main.java", "md": false, "text": "// Assignment 18 — standalone example\nimport javax.swing.*;\nimport java.awt.*;\npublic class Main {\n    public static void main(String[] args) {\n        SwingUtilities.invokeLater(() -> {\n            JFrame frame = new JFrame(\"Add / Subtract Calculator\");\n            frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);\n            frame.setLayout(new GridLayout(4, 2, 8, 8));\n            JTextField first = new JTextField(), second = new JTextField();\n            JLabel result = new JLabel(\"Result:\");\n            JButton add = new JButton(\"Add\"), subtract = new JButton(\"Subtract\");\n            frame.add(new JLabel(\"First number:\")); frame.add(first);\n            frame.add(new JLabel(\"Second number:\")); frame.add(second);\n            frame.add(add); frame.add(subtract);\n            frame.add(result); frame.add(new JLabel(\"\"));\n            add.addActionListener(e -> calculate(first, second, result, true));\n            subtract.addActionListener(e -> calculate(first, second, result, false));\n            frame.pack(); frame.setLocationRelativeTo(null); frame.setVisible(true);\n        });\n    }\n    static void calculate(JTextField a, JTextField b, JLabel result, boolean addition) {\n        try {\n            double x = Double.parseDouble(a.getText());\n            double y = Double.parseDouble(b.getText());\n            result.setText(\"Result: \" + (addition ? x + y : x - y));\n        } catch (NumberFormatException e) { result.setText(\"Enter valid numbers\"); }\n    }\n}\n"}, {"id": "f20", "group": "Assignments 1–18", "path": "Assignments_1-18/README.md", "label": "README.md (1–18)", "name": "README.md", "md": true, "text": "# Java Assignments 1–18 — Separate Programs\n\nEach Assignment_XX directory is independent; all main entry points use `Main.java`. These are concise working examples for each assignment's **first exercise/theme**, not solutions to every exercise in the original documents.\n\nFor assignments 1–11 and 13–18:\n```\ncd Assignment_01\njavac Main.java\njava Main\n```\n\nAssignment 12 (user-defined packages), from inside Assignment_12:\n```\njavac Main.java student/StudentInfo.java faculty/FacultyInfo.java\njava Main\n```\n\nAssignments 17 and 18 launch graphical Swing windows; run on a machine with a desktop GUI.\n\nAssignments 13 writes `employees.txt` in the current working directory.\n\nAssignment 17 demonstrates Swing, not browser applets. Applets are obsolete and unsupported by modern JDKs.\n"}, {"id": "f21", "group": "Assignments 19–30 · MCQ Quiz Bank", "path": "Assignments_19-30_Quiz/00_Quiz_Overview.txt", "label": "Quiz Overview (19–30).txt", "name": "Quiz_Overview.txt", "md": false, "text": "PROGRAMMING WITH JAVA — LABORATORY ASSESSMENT\nFinal Lab Practicals MCQ Quiz Bank\n\nComplete 180 Multiple-Choice Questions (15 Questions × 12 Experiments, Assignments 19–30) strictly matched to practical codebase contexts, viva requirements, and end-sem exam patterns. Includes verified correct answers and concise one-line conceptual explanations.\n\nTarget Assignments: Assignments 19 – 30 (12 Exps)\nQuestions per Exp: 15 Strictly MCQ Questions\nTotal Questions: 180 Verified Questions\nAssessment Format: Answer + 1-Line Explanation\n\nTable of Experiments & Core Topics (19–30)\n------------------------------------------------------------\nExp 19  JDBC SELECT: Data Retrieval  [15 MCQs]\n        Core: JDBC URL, DriverManager, Statement, executeQuery(), ResultSet cursor\n\nExp 20  JDBC DML Operations (INSERT, UPDATE, DELETE & CRUD)  [15 MCQs]\n        Core: DML Operations (INSERT, UPDATE, DELETE), PreparedStatement, executeUpdate()\n\nExp 21  Exploration of JDBC Core Classes & Interfaces  [15 MCQs]\n        Core: JDBC Core Architecture: DriverManager, Connection, Statement, Transactions\n\nExp 22  PreparedStatement and ResultSet: Parameterized Queries & Security  [15 MCQs]\n        Core: PreparedStatement, Parameter Placeholders (?), SQL Injection Prevention\n\nExp 23  ResultSet Navigation and Record Retrieval  [15 MCQs]\n        Core: ResultSet Navigation: next(), previous(), first(), last(), absolute(), relative()\n\nExp 24  Swing GUI Integrated with JDBC Database Operations  [15 MCQs]\n        Core: Swing GUI + JDBC: JFrame, JTable, DefaultTableModel, JOptionPane, Event Dispatch\n\nExp 25  Threads Using the Thread Class and Lifecycle  [15 MCQs]\n        Core: Thread Class, Thread Lifecycle (NEW, RUNNABLE, TERMINATED), sleep(), join()\n\nExp 26  Multiple Threads Using Runnable Interface & Synchronization  [15 MCQs]\n        Core: Runnable Interface, Multiple Threads, Synchronization, volatile, wait/notify\n\nExp 27  Socket Programming: Client/Server Communication  [15 MCQs]\n        Core: Socket Networking: TCP/IP, ServerSocket, Socket, Streams, accept(), BufferedReader\n\nExp 28  Remote Method Invocation (RMI)  [15 MCQs]\n        Core: Remote Method Invocation: Remote, RemoteException, Stub, UnicastRemoteObject\n\nExp 29  JavaServer Pages (JSP) Basics & Dynamic Form Processing  [15 MCQs]\n        Core: JavaServer Pages: Scriptlets, Expressions, request.getParameter(), Implicit Objects\n\nExp 30  JSP CRUD Operations with MySQL Database  [15 MCQs]\n        Core: JSP CRUD + MySQL: Full-stack Create, Read, Update, Delete, PRG Pattern, DAO\n"}, {"id": "f22", "group": "Assignments 19–30 · MCQ Quiz Bank", "path": "Assignments_19-30_Quiz/Assignment_19_MCQ_Quiz.txt", "label": "Assignment_19 · MCQ Quiz.txt", "name": "Assignment_19_MCQ_Quiz.txt", "md": false, "text": "EXPERIMENT 19 • PRACTICALS QUIZ\nAssignment 19 — JDBC SELECT: Data Retrieval\n============================================================\nPractical Scope & Context: Establish connectivity with a relational database (MySQL) and retrieve records using the SQL SELECT statement and Statement.executeQuery().\n============================================================\n\nQ1. Which method of the Statement interface is used to execute a SELECT query in JDBC?\nA. executeUpdate()\nB. executeQuery()\nC. executeSelect()\nD. runQuery()\n✔ Correct Answer: Option B\nExplanation: executeQuery() is specifically designed for SQL SELECT statements and returns a ResultSet object containing the retrieved rows.\n\nQ2. What return type does the executeQuery() method produce?\nA. int\nB. boolean\nC. ResultSet\nD. RowSet\n✔ Correct Answer: Option C\nExplanation: executeQuery() returns a ResultSet that maintains a cursor pointing to data rows returned by the query.\n\nQ3. Where does the cursor of a ResultSet initially point immediately after creation?\nA. At the first row\nB. Before the first row\nC. At the last row\nD. After the last row\n✔ Correct Answer: Option B\nExplanation: When a ResultSet is first returned, its cursor is positioned before the first row, requiring a call to next() to move to the first valid record.\n\nQ4. Which method is used to move the ResultSet cursor forward by one row?\nA. moveNext()\nB. forward()\nC. step()\nD. next()\n✔ Correct Answer: Option D\nExplanation: The next() method advances the cursor one row forward and returns true if a valid row exists, or false if the end of the result set is reached.\n\nQ5. Which method is used to retrieve an integer column named 'student_id' from the current row of a ResultSet?\nA. rs.parseInteger(\"student_id\")\nB. rs.readInt(\"student_id\")\nC. rs.getInt(\"student_id\")\nD. rs.fetchInt(\"student_id\")\n✔ Correct Answer: Option C\nExplanation: The getInt() method retrieves the value of the designated column in the current row as a Java int primitive.\n\nQ6. Which method is used to retrieve text data stored in a VARCHAR column named 'name' from a ResultSet?\nA. rs.getString(\"name\")\nB. rs.getText(\"name\")\nC. rs.getVarchar(\"name\")\nD. rs.readString(\"name\")\n✔ Correct Answer: Option A\nExplanation: getString() is the standard getter method in ResultSet for retrieving SQL VARCHAR, CHAR, and TEXT types as a Java String.\n\nQ7. What is the standard JDBC URL format for connecting to a local MySQL database named 'college' on default port 3306?\nA. mysql://localhost:3306/college\nB. jdbc:mysql://localhost:3306/college\nC. driver:mysql://localhost:3306/college\nD. jdbc://localhost:3306:college\n✔ Correct Answer: Option B\nExplanation: A JDBC URL follows the protocol:subprotocol://host:port/database syntax, which for MySQL is jdbc:mysql://localhost:3306/college.\n\nQ8. Which checked exception must be handled or declared when executing JDBC database operations?\nA. DatabaseException\nB. IOException\nC. SQLException\nD. DataAccessException\n✔ Correct Answer: Option C\nExplanation: java.sql.SQLException is the standard checked exception thrown whenever a database access error or syntax error occurs in JDBC.\n\nQ9. What happens if you attempt to call rs.getString(\"name\") before calling rs.next() on a freshly opened ResultSet?\nA. It returns null\nB. It automatically advances to the first row\nC. It throws an SQLException (Before start of result set)\nD. It returns an empty string\n✔ Correct Answer: Option C\nExplanation: Because the cursor is positioned before the first row initially, attempting to read column values without advancing causes an SQLException.\n\nQ10. Which loop construct is standard idiomatically in Java to iterate through all rows of a ResultSet?\nA. for (Row r : rs)\nB. while (rs.next())\nC. while (rs.hasNext())\nD. do ... while (rs.hasRows())\n✔ Correct Answer: Option B\nExplanation: while (rs.next()) advances the cursor row by row and terminates cleanly when next() returns false at the end of the results.\n\nQ11. What is the 1-based indexing rule for retrieving columns by index in JDBC ResultSet?\nA. The first column is index 0\nB. The first column is index 1\nC. The first column is index -1\nD. Columns cannot be retrieved by numeric index\n✔ Correct Answer: Option B\nExplanation: Unlike standard Java arrays and collections which are 0-based, JDBC column indexes are strictly 1-based (first column is 1).\n\nQ12. Why is the try-with-resources statement recommended when working with Connection, Statement, and ResultSet?\nA. It speeds up network data transfer\nB. It automatically closes resources in reverse order of declaration even if an exception occurs\nC. It eliminates the need for catching SQLException\nD. It prevents SQL syntax errors\n✔ Correct Answer: Option B\nExplanation: All three implement java.lang.AutoCloseable, so try-with-resources guarantees they are closed promptly, preventing connection and memory leaks.\n\nQ13. Which method is called on a Connection object to create a standard Statement for running static queries?\nA. con.getStatement()\nB. con.newStatement()\nC. con.createStatement()\nD. con.buildStatement()\n✔ Correct Answer: Option C\nExplanation: createStatement() is the factory method on Connection used to create an instance of Statement for sending static SQL statements.\n\nQ14. Which package contains the core JDBC interfaces such as Connection, Statement, and ResultSet?\nA. java.jdbc\nB. javax.database\nC. java.sql\nD. org.jdbc\n✔ Correct Answer: Option C\nExplanation: The standard JDBC API core classes and interfaces belong to the java.sql package.\n\nQ15. What is the primary vulnerability of concatenating unsanitized user input directly into a SELECT query executed via Statement?\nA. Buffer Overflow\nB. SQL Injection\nC. Cross-Site Scripting\nD. ClassCastException\n✔ Correct Answer: Option B\nExplanation: String concatenation allows attackers to inject malicious SQL fragments that alter query logic, compromising database security.\n"}, {"id": "f23", "group": "Assignments 19–30 · MCQ Quiz Bank", "path": "Assignments_19-30_Quiz/Assignment_20_MCQ_Quiz.txt", "label": "Assignment_20 · MCQ Quiz.txt", "name": "Assignment_20_MCQ_Quiz.txt", "md": false, "text": "EXPERIMENT 20 • PRACTICALS QUIZ\nAssignment 20 — JDBC DML Operations (INSERT, UPDATE, DELETE & CRUD)\n============================================================\nPractical Scope & Context: Develop a Java application to perform Data Manipulation Language (DML) operations including INSERT, UPDATE, and DELETE using PreparedStatement and executeUpdate().\n============================================================\n\nQ1. Which Statement or PreparedStatement method is used to execute INSERT, UPDATE, or DELETE statements?\nA. executeQuery()\nB. executeDML()\nC. executeUpdate()\nD. executeBatchOnly()\n✔ Correct Answer: Option C\nExplanation: executeUpdate() is used for executing DML statements (INSERT, UPDATE, DELETE) and DDL statements.\n\nQ2. What does the return value of executeUpdate() represent?\nA. A boolean indicating true if query succeeded\nB. An integer representing the number of rows affected by the SQL statement\nC. A ResultSet containing generated keys\nD. The primary key of the modified table\n✔ Correct Answer: Option B\nExplanation: executeUpdate() returns an int reflecting the row count for DML statements, or 0 for SQL statements that return nothing.\n\nQ3. In CRUD operations, which SQL command corresponds to the 'Create' operation?\nA. CREATE TABLE\nB. INSERT INTO\nC. SELECT\nD. ADD RECORD\n✔ Correct Answer: Option B\nExplanation: In CRUD data operations, 'Create' refers to inserting new data records into an existing table using the INSERT statement.\n\nQ4. What symbol is used as a parameter placeholder in a PreparedStatement SQL string?\nA. :param\nB. @val\nC. ?\nD. %s\n✔ Correct Answer: Option C\nExplanation: The question mark (?) serves as a positional placeholder for parameterized values in JDBC PreparedStatement.\n\nQ5. In ps.setInt(1, 101), what does the first argument '1' represent?\nA. The table column index\nB. The 1-based parameter placeholder index in the SQL string\nC. The database row index\nD. The retry count\n✔ Correct Answer: Option B\nExplanation: Parameter markers in PreparedStatement are numbered starting from 1 for the first question mark from left to right.\n\nQ6. Which method is used on a PreparedStatement to set a floating-point value like marks or salary?\nA. ps.setNumber(index, val)\nB. ps.setFloat(index, val) or ps.setDouble(index, val)\nC. ps.setDecimal(index, val)\nD. ps.setReal(index, val)\n✔ Correct Answer: Option B\nExplanation: PreparedStatement provides type-specific setters like setDouble() and setFloat() to bind numerical values safely.\n\nQ7. What happens if executeUpdate() is executed for a DELETE statement where no rows match the WHERE clause?\nA. An SQLException is thrown\nB. It returns -1\nC. It returns 0\nD. The program halts\n✔ Correct Answer: Option C\nExplanation: If no rows meet the WHERE condition, no rows are affected, so executeUpdate() cleanly returns 0.\n\nQ8. Why is PreparedStatement preferred over Statement for executing INSERT and UPDATE statements with user input?\nA. It automatically commits transactions without rollback\nB. It precompiles SQL and protects against SQL injection vulnerabilities\nC. It does not require an active database connection\nD. It avoids using SQL syntax\n✔ Correct Answer: Option B\nExplanation: PreparedStatement separates query structure from parameter data, neutralizing injected SQL metacharacters and offering precompiled efficiency.\n\nQ9. Which method on Connection creates a PreparedStatement?\nA. con.createPreparedStatement(sql)\nB. con.prepare(sql)\nC. con.prepareStatement(sql)\nD. con.newPreparedStatement(sql)\n✔ Correct Answer: Option C\nExplanation: Connection.prepareStatement(String sql) is the standard factory method for creating parameterized PreparedStatement instances.\n\nQ10. What happens if you execute ps.executeUpdate() without setting a value for one of the '?' placeholders?\nA. The parameter defaults to NULL automatically\nB. An SQLException is thrown indicating a parameter was not set\nC. The query ignores that column\nD. The compilation fails\n✔ Correct Answer: Option B\nExplanation: All parameter placeholders must be bound prior to execution; omitting one throws an SQLException at runtime.\n\nQ11. In an UPDATE statement: 'UPDATE students SET marks = ? WHERE roll_no = ?', how many placeholders must be bound?\nA. 1\nB. 2\nC. 3\nD. None\n✔ Correct Answer: Option B\nExplanation: There are two '?' marks in the query: parameter 1 sets marks, and parameter 2 specifies the roll_no in the WHERE clause.\n\nQ12. Which SQL statement is used to remove all records or specific records from a table in CRUD?\nA. REMOVE\nB. DROP\nC. DELETE\nD. TRUNCATE ONLY\n✔ Correct Answer: Option C\nExplanation: The DELETE statement is standard DML used in CRUD to delete rows matching an optional WHERE condition.\n\nQ13. If an INSERT query fails due to a Primary Key constraint violation, what occurs in Java?\nA. executeUpdate() returns 0\nB. An SQLException is thrown\nC. The existing row is overwritten automatically\nD. A NullPointerException is thrown\n✔ Correct Answer: Option B\nExplanation: Database constraint violations (like duplicate primary keys or foreign key mismatches) cause the database engine to signal an error, raising an SQLException.\n\nQ14. Which method sets a parameter placeholder to SQL NULL explicitly in a PreparedStatement?\nA. ps.setEmpty(index)\nB. ps.setNull(index, java.sql.Types.VARCHAR)\nC. ps.setString(index, \"NULL\")\nD. ps.clearParam(index)\n✔ Correct Answer: Option B\nExplanation: ps.setNull(parameterIndex, sqlType) binds a SQL NULL value of the designated SQL type to the placeholder.\n\nQ15. By default, what is the auto-commit mode of a newly opened JDBC Connection?\nA. False (manual commit required)\nB. True (each individual statement is committed immediately upon execution)\nC. Disabled until first INSERT\nD. Read-only\n✔ Correct Answer: Option B\nExplanation: In JDBC, auto-commit is enabled (true) by default, meaning every SQL statement is executed and committed as an individual transaction.\n"}, {"id": "f24", "group": "Assignments 19–30 · MCQ Quiz Bank", "path": "Assignments_19-30_Quiz/Assignment_21_MCQ_Quiz.txt", "label": "Assignment_21 · MCQ Quiz.txt", "name": "Assignment_21_MCQ_Quiz.txt", "md": false, "text": "EXPERIMENT 21 • PRACTICALS QUIZ\nAssignment 21 — Exploration of JDBC Core Classes & Interfaces\n============================================================\nPractical Scope & Context: Demonstration and exploration of the core JDBC architecture: DriverManager, Connection, and Statement classes and interfaces.\n============================================================\n\nQ1. What is the primary role of the DriverManager class in JDBC?\nA. To compile SQL queries into bytecode\nB. To manage JDBC drivers and establish physical database connections\nC. To render database tables in a GUI\nD. To store table metadata\n✔ Correct Answer: Option B\nExplanation: DriverManager acts as the service locator and manager for JDBC drivers, connecting applications to databases via matching driver URLs.\n\nQ2. Which static method of DriverManager is invoked to establish a database connection?\nA. DriverManager.createConnection(url)\nB. DriverManager.openConnection(url)\nC. DriverManager.getConnection(url, user, password)\nD. DriverManager.startSession(url)\n✔ Correct Answer: Option C\nExplanation: DriverManager.getConnection() attempts to establish a connection to the given database URL using registered drivers.\n\nQ3. Is java.sql.Connection a class or an interface?\nA. It is an abstract class\nB. It is a concrete class provided by Sun/Oracle\nC. It is an interface whose implementation is provided by the vendor JDBC driver\nD. It is a final enum\n✔ Correct Answer: Option C\nExplanation: Connection is a standard Java interface; vendor drivers (like MySQL Connector/J) provide the concrete implementation class.\n\nQ4. Which method is historically used to explicitly load and register a JDBC driver class into memory prior to JDBC 4.0?\nA. ClassLoader.getDriver()\nB. Class.forName(\"com.mysql.cj.jdbc.Driver\")\nC. DriverManager.loadClass()\nD. System.loadLibrary(\"mysql\")\n✔ Correct Answer: Option B\nExplanation: Class.forName() loads the driver class, executing its static initializer block which registers the driver with DriverManager.\n\nQ5. Under modern JDBC 4.0+, why is explicit Class.forName() generally optional?\nA. Databases no longer need drivers\nB. Drivers included in the classpath are automatically discovered via the Java ServiceLoader mechanism (META-INF/services)\nC. The JVM compiles JDBC directly into machine code\nD. The operating system loads the driver at boot time\n✔ Correct Answer: Option B\nExplanation: JDBC 4.0 introduced automatic driver discovery using the Service Provider Interface (SPI) via META-INF/services/java.sql.Driver.\n\nQ6. Which method on a Connection object is used to disable auto-commit for transaction management?\nA. con.disableCommit()\nB. con.setAutoCommit(false)\nC. con.beginTransaction()\nD. con.manualCommit()\n✔ Correct Answer: Option B\nExplanation: Calling con.setAutoCommit(false) begins a transaction scope, allowing multiple statements to be grouped before calling commit() or rollback().\n\nQ7. Which method commits all changes made since the previous commit/rollback in a transaction?\nA. con.save()\nB. con.persist()\nC. con.commit()\nD. con.flush()\n✔ Correct Answer: Option C\nExplanation: con.commit() makes all changes made since the previous commit/rollback permanent and releases any database locks.\n\nQ8. Which method discards all changes made in the current transaction?\nA. con.undo()\nB. con.revert()\nC. con.rollback()\nD. con.abort()\n✔ Correct Answer: Option C\nExplanation: con.rollback() undoes all modifications performed in the current transaction scope, restoring the prior consistent state.\n\nQ9. What interface is the super-interface of PreparedStatement and CallableStatement?\nA. ResultSet\nB. Statement\nC. Connection\nD. Driver\n✔ Correct Answer: Option B\nExplanation: PreparedStatement extends Statement, and CallableStatement (for stored procedures) extends PreparedStatement.\n\nQ10. Which Statement method can execute any arbitrary SQL statement and returns true if the first result is a ResultSet?\nA. execute()\nB. executeQuery()\nC. executeUpdate()\nD. executeGeneric()\n✔ Correct Answer: Option A\nExplanation: execute() returns true if the first result is a ResultSet (e.g. SELECT) or false if it is an update count or there are no results.\n\nQ11. What object provides information about the database itself, such as supported SQL features and table structure?\nA. ResultSetMetaData\nB. DatabaseMetaData\nC. DriverManagerInfo\nD. SchemaInfo\n✔ Correct Answer: Option B\nExplanation: DatabaseMetaData (obtained via con.getMetaData()) provides comprehensive details about the database software and capabilities.\n\nQ12. What object provides information about the types and properties of the columns in a ResultSet?\nA. DatabaseMetaData\nB. ResultSetMetaData\nC. ColumnMap\nD. TableDescriptor\n✔ Correct Answer: Option B\nExplanation: ResultSetMetaData (obtained via rs.getMetaData()) describes the number, names, and data types of columns in that ResultSet.\n\nQ13. What is the consequence of failing to close Connection objects in a production Java application?\nA. Connection pool exhaustion leading to application failure\nB. Automatic deletion of database tables\nC. Compilation error on next build\nD. Port number corruption\n✔ Correct Answer: Option A\nExplanation: Unclosed connections remain active on the database server, exhausting available connection pools and refusing new clients.\n\nQ14. Which method checks if a Connection object is currently closed?\nA. con.isOpen()\nB. con.isClosed()\nC. con.checkStatus()\nD. con.isAlive()\n✔ Correct Answer: Option B\nExplanation: isClosed() returns true if the connection has been closed or false if it is still open.\n\nQ15. In the JDBC architecture, what does a 'Type 4' JDBC driver refer to?\nA. JDBC-ODBC bridge\nB. Native-API driver written in C\nC. Network-protocol driver\nD. Pure Java Direct-to-Database Native-Protocol driver\n✔ Correct Answer: Option D\nExplanation: Type 4 is a 100% pure Java driver that converts JDBC calls directly into vendor-specific database network protocols.\n"}, {"id": "f25", "group": "Assignments 19–30 · MCQ Quiz Bank", "path": "Assignments_19-30_Quiz/Assignment_22_MCQ_Quiz.txt", "label": "Assignment_22 · MCQ Quiz.txt", "name": "Assignment_22_MCQ_Quiz.txt", "md": false, "text": "EXPERIMENT 22 • PRACTICALS QUIZ\nAssignment 22 — PreparedStatement and ResultSet: Parameterized Queries & Security\n============================================================\nPractical Scope & Context: Demonstration and exploration of PreparedStatement and ResultSet for parameterized query execution, secure authentication (login), and preventing SQL injection.\n============================================================\n\nQ1. What is the primary architectural advantage of PreparedStatement over Statement in JDBC?\nA. PreparedStatement executes on the client machine instead of the database server\nB. PreparedStatement is precompiled by the database engine and allows parameterized inputs\nC. PreparedStatement automatically commits transactions after each query\nD. PreparedStatement converts SQL into NoSQL format\n✔ Correct Answer: Option B\nExplanation: PreparedStatement is precompiled once by the database, allowing repeated efficient execution and robust protection against SQL injection.\n\nQ2. How does PreparedStatement prevent SQL injection attacks in login authentication queries?\nA. By running queries in an isolated sandbox thread\nB. By treating parameter values strictly as literal data rather than executable SQL syntax\nC. By encrypting network packets using TLS automatically\nD. By rejecting usernames containing special characters at compile time\n✔ Correct Answer: Option B\nExplanation: PreparedStatement treats bound values strictly as literal values, ensuring malicious SQL metacharacters like ' OR '1'='1 cannot alter query structure.\n\nQ3. In the query 'SELECT role FROM users WHERE username = ? AND password = ?', which method binds the password value to the second placeholder?\nA. ps.setString(2, password)\nB. ps.setString(1, password)\nC. ps.bind(2, password)\nD. ps.setParameter(2, password)\n✔ Correct Answer: Option A\nExplanation: Placeholders are numbered starting at 1 from left to right; the second question mark corresponds to index 2.\n\nQ4. What does a call to rs.next() returning true indicate in a login authentication check?\nA. The database password hash was cracked\nB. A matching user record was found in the database\nC. The user credentials were invalid\nD. Multiple duplicate accounts exist\n✔ Correct Answer: Option B\nExplanation: rs.next() returns true when at least one matching record is found for the specified credentials, confirming valid authentication.\n\nQ5. Which method is used on PreparedStatement to clear all previously set parameter values before reusing it?\nA. ps.reset()\nB. ps.clearParameters()\nC. ps.cleanParams()\nD. ps.flush()\n✔ Correct Answer: Option B\nExplanation: clearParameters() clears the current parameter values immediately, allowing the PreparedStatement to be reused with new parameters.\n\nQ6. What happens if an invalid parameter index, such as 0 or an index exceeding the placeholder count, is passed to ps.setString()?\nA. It silently fails without error\nB. It throws an SQLException (Parameter index out of range)\nC. It appends a new column to the table\nD. It throws an IndexOutOfBoundsException\n✔ Correct Answer: Option B\nExplanation: JDBC parameter indexes are 1-based; indices less than 1 or greater than the number of placeholders result in an SQLException.\n\nQ7. Which method should be used when executing a PreparedStatement containing a SELECT statement?\nA. ps.executeQuery(sql)\nB. ps.executeQuery()\nC. ps.executeUpdate()\nD. ps.executeSelect()\n✔ Correct Answer: Option B\nExplanation: For PreparedStatement, executeQuery() takes no arguments because the SQL statement was already provided during creation in con.prepareStatement(sql).\n\nQ8. Why is calling ps.executeQuery(sql) on a PreparedStatement considered bad practice or an error?\nA. It crashes the database server\nB. Passing SQL to a PreparedStatement execution method overrides the prepared query or throws an SQLException\nC. It converts the query to DDL\nD. It disables connection pooling\n✔ Correct Answer: Option B\nExplanation: The overloaded executeQuery(String sql) belongs to Statement; calling it on PreparedStatement throws an SQLException in many drivers.\n\nQ9. Which method sets a binary stream for large objects such as images or documents in PreparedStatement?\nA. ps.setBlob() or ps.setBinaryStream()\nB. ps.setImage()\nC. ps.setFile()\nD. ps.setRawData()\n✔ Correct Answer: Option A\nExplanation: setBinaryStream() and setBlob() are used to write large binary data streams (BLOBs) into database columns.\n\nQ10. Which method retrieves a boolean value from a ResultSet column named 'is_active'?\nA. rs.readBoolean(\"is_active\")\nB. rs.getBoolean(\"is_active\")\nC. rs.parseBool(\"is_active\")\nD. rs.fetchBoolean(\"is_active\")\n✔ Correct Answer: Option B\nExplanation: getBoolean() retrieves the designated column value as a Java boolean (converting SQL BIT/BOOLEAN/TINYINT values).\n\nQ11. Which method on ResultSet checks if the last column value read was SQL NULL?\nA. rs.isNull()\nB. rs.checkNull()\nC. rs.wasNull()\nD. rs.isLastNull()\n✔ Correct Answer: Option C\nExplanation: wasNull() reports whether the last column value read was SQL NULL, which is critical for primitive getters that default to 0.\n\nQ12. Which method sets a java.sql.Date parameter in a PreparedStatement?\nA. ps.setDate(index, date)\nB. ps.setCalendar(index, date)\nC. ps.setTime(index, date)\nD. ps.setDay(index, date)\n✔ Correct Answer: Option A\nExplanation: setDate(int parameterIndex, java.sql.Date x) binds a SQL DATE value to the designated parameter.\n\nQ13. How does PreparedStatement improve performance when executing the same query structure 1000 times in a loop?\nA. It bypasses database authentication after the first run\nB. The SQL query plan is parsed, compiled, and cached once, reusing the execution plan with new parameters\nC. It stores all 1000 rows in JVM heap memory without network calls\nD. It runs the queries in C instead of Java\n✔ Correct Answer: Option B\nExplanation: Precompilation allows the database engine to reuse the execution plan across multiple invocations, reducing query parsing and planning overhead.\n\nQ14. Can a PreparedStatement be used to dynamically set table names or column names using '?' placeholders?\nA. Yes, '?' works for any identifier\nB. No, '?' placeholders can only be used for literal data values, not identifiers like table or column names\nC. Yes, but only if the user has DBA privileges\nD. Yes, using ps.setIdentifier()\n✔ Correct Answer: Option B\nExplanation: SQL grammar requires identifiers (table/column names) during compilation; question marks can only substitute for literal values.\n\nQ15. Which interface should be used if you need to execute a database stored procedure with IN and OUT parameters?\nA. PreparedStatement\nB. CallableStatement\nC. ProcedureStatement\nD. RoutineStatement\n✔ Correct Answer: Option B\nExplanation: java.sql.CallableStatement extends PreparedStatement and provides specialized support for calling database stored procedures.\n"}, {"id": "f26", "group": "Assignments 19–30 · MCQ Quiz Bank", "path": "Assignments_19-30_Quiz/Assignment_23_MCQ_Quiz.txt", "label": "Assignment_23 · MCQ Quiz.txt", "name": "Assignment_23_MCQ_Quiz.txt", "md": false, "text": "EXPERIMENT 23 • PRACTICALS QUIZ\nAssignment 23 — ResultSet Navigation and Record Retrieval\n============================================================\nPractical Scope & Context: Develop a Java application using JDBC to navigate and retrieve records from a ResultSet using bidirectional and scrollable cursor methods.\n============================================================\n\nQ1. What is the default cursor type of a ResultSet created by a standard con.createStatement() call?\nA. TYPE_SCROLL_INSENSITIVE\nB. TYPE_FORWARD_ONLY\nC. TYPE_SCROLL_SENSITIVE\nD. TYPE_BIDIRECTIONAL\n✔ Correct Answer: Option B\nExplanation: By default, a ResultSet is TYPE_FORWARD_ONLY, meaning the cursor can only advance from the beginning to the end.\n\nQ2. Which ResultSet method moves the cursor backward to the previous row?\nA. back()\nB. prev()\nC. previous()\nD. reverse()\n✔ Correct Answer: Option C\nExplanation: previous() moves the cursor to the previous row in scrollable result sets and returns true if the cursor is on a valid row.\n\nQ3. Which method moves the cursor to the very first row of a scrollable ResultSet?\nA. top()\nB. first()\nC. start()\nD. moveToFirst()\n✔ Correct Answer: Option B\nExplanation: first() moves the cursor directly to the first row of a scrollable result set.\n\nQ4. Which method moves the cursor to the very last row of a scrollable ResultSet?\nA. end()\nB. last()\nC. bottom()\nD. moveToLast()\n✔ Correct Answer: Option B\nExplanation: last() moves the cursor to the final row of a scrollable ResultSet, returning true if it contains at least one row.\n\nQ5. What does rs.absolute(3) do on a scrollable ResultSet?\nA. Moves the cursor forward 3 rows from the current position\nB. Moves the cursor to the 3rd row from the beginning of the ResultSet\nC. Deletes the 3rd row\nD. Returns the 3rd column value\n✔ Correct Answer: Option B\nExplanation: absolute(int row) moves the cursor to the absolute row number specified (1-indexed) relative to the beginning.\n\nQ6. What does a negative argument in rs.absolute(-1) achieve?\nA. It throws an IllegalArgumentException\nB. It moves the cursor to the last row of the ResultSet\nC. It closes the ResultSet\nD. It moves before the first row\n✔ Correct Answer: Option B\nExplanation: Negative numbers specify positions relative to the end of the result set; -1 positions the cursor on the last row.\n\nQ7. How does rs.relative(2) differ from rs.absolute(2)?\nA. They perform the exact same action\nB. relative(2) moves 2 rows forward from current position; absolute(2) moves to row 2 from the start\nC. relative(2) only works on tables with foreign keys\nD. absolute(2) is relative to the last row\n✔ Correct Answer: Option B\nExplanation: relative(n) advances or recedes relative to the current cursor position, whereas absolute(n) navigates to fixed row index n.\n\nQ8. Which Statement creation syntax creates a scrollable, read-only ResultSet?\nA. con.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_READ_ONLY)\nB. con.createStatement(ResultSet.SCROLLABLE, ResultSet.READ)\nC. con.createScrollableStatement()\nD. con.createStatement().setScrollable(true)\n✔ Correct Answer: Option A\nExplanation: Passing TYPE_SCROLL_INSENSITIVE and CONCUR_READ_ONLY to createStatement() configures scrollable cursor capability.\n\nQ9. What does ResultSet.TYPE_SCROLL_INSENSITIVE mean?\nA. The cursor cannot scroll backwards\nB. The result set is scrollable but generally does not reflect changes made by other concurrent transactions\nC. Case sensitivity is ignored in column names\nD. Exceptions are silently ignored\n✔ Correct Answer: Option B\nExplanation: TYPE_SCROLL_INSENSITIVE creates a scrollable cursor that is insensitive to changes made to the underlying database while open.\n\nQ10. What is the difference between TYPE_SCROLL_INSENSITIVE and TYPE_SCROLL_SENSITIVE?\nA. Sensitive result sets reflect real-time external updates/deletes made to the database rows\nB. Insensitive result sets are faster to download over network\nC. Sensitive result sets encrypt data in memory\nD. Insensitive result sets cannot be read\n✔ Correct Answer: Option A\nExplanation: TYPE_SCROLL_SENSITIVE result sets dynamically reflect changes made to the underlying database records by other sessions.\n\nQ11. Which method checks if the cursor is positioned on the first row of a ResultSet?\nA. rs.atBeginning()\nB. rs.isFirst()\nC. rs.hasFirst()\nD. rs.checkFirst()\n✔ Correct Answer: Option B\nExplanation: isFirst() returns true if the cursor is currently positioned on the first row of the result set.\n\nQ12. Which method checks if the cursor is positioned after the last valid row?\nA. rs.isAfterLast()\nB. rs.isPastEnd()\nC. rs.isFinished()\nD. rs.atEnd()\n✔ Correct Answer: Option A\nExplanation: isAfterLast() returns true if the cursor is positioned after the last row, indicating traversal is complete.\n\nQ13. Which method returns the current row number where the cursor is positioned?\nA. rs.currentIndex()\nB. rs.getRow()\nC. rs.rowNum()\nD. rs.getPosition()\n✔ Correct Answer: Option B\nExplanation: getRow() returns the current 1-based row number, or 0 if the cursor is not currently on a valid row.\n\nQ14. What concurrency mode allows updates to table records directly through the ResultSet object?\nA. ResultSet.CONCUR_READ_ONLY\nB. ResultSet.CONCUR_UPDATABLE\nC. ResultSet.CONCUR_WRITE\nD. ResultSet.CONCUR_MODIFY\n✔ Correct Answer: Option B\nExplanation: CONCUR_UPDATABLE enables modifying database data in-place using methods like updateString() and updateRow().\n\nQ15. What happens if you invoke rs.previous() on a TYPE_FORWARD_ONLY ResultSet?\nA. It returns false\nB. An SQLException is thrown because reverse scrolling is unsupported\nC. It loops back to the start\nD. It closes the connection\n✔ Correct Answer: Option B\nExplanation: Calling bidirectional navigation methods on a forward-only result set violates cursor capabilities and throws an SQLException.\n"}, {"id": "f27", "group": "Assignments 19–30 · MCQ Quiz Bank", "path": "Assignments_19-30_Quiz/Assignment_24_MCQ_Quiz.txt", "label": "Assignment_24 · MCQ Quiz.txt", "name": "Assignment_24_MCQ_Quiz.txt", "md": false, "text": "EXPERIMENT 24 • PRACTICALS QUIZ\nAssignment 24 — Swing GUI Integrated with JDBC Database Operations\n============================================================\nPractical Scope & Context: Develop a full Java desktop GUI application using Swing components integrated with JDBC to perform database CRUD operations (e.g., Library Management or Book Tracking).\n============================================================\n\nQ1. Which Swing component is commonly used to display tabular database records retrieved via JDBC?\nA. JList\nB. JTable\nC. JPanel\nD. JTabbedPane\n✔ Correct Answer: Option B\nExplanation: JTable is the standard Swing component designed to present two-dimensional rows and columns of database data.\n\nQ2. Which interface or class is commonly implemented or used to manage rows and columns dynamically in a JTable?\nA. DefaultTableModel\nB. DataGridManager\nC. TableController\nD. ResultSetAdapter\n✔ Correct Answer: Option A\nExplanation: DefaultTableModel provides standard implementations to add, remove, and update rows and column headers in a JTable.\n\nQ3. Which method on a JTextField is used to extract the text entered by the user?\nA. textField.readText()\nB. textField.getText()\nC. textField.getValue()\nD. textField.fetchString()\n✔ Correct Answer: Option B\nExplanation: getText() returns the textual content currently entered into the text field component as a String.\n\nQ4. When reading numeric input like a Book ID or Student Age from a JTextField, how must it be converted before binding to ps.setInt()?\nA. String.valueOf()\nB. Integer.parseInt(textField.getText().trim())\nC. (int) textField.getText()\nD. Convert.toInt()\n✔ Correct Answer: Option B\nExplanation: Swing fields return String; Integer.parseInt() parses that string into a primitive int required by setInt().\n\nQ5. What exception should be caught if a user enters non-numeric letters into an integer text field?\nA. SQLException\nB. NumberFormatException\nC. InputMismatchException\nD. ArithmeticException\n✔ Correct Answer: Option B\nExplanation: Integer.parseInt() throws NumberFormatException if the string does not contain a parsable integer.\n\nQ6. Which Swing class provides pre-built modal dialogs to display success or error alerts to the user?\nA. JDialogBox\nB. JOptionPane\nC. JAlert\nD. JMessage\n✔ Correct Answer: Option B\nExplanation: JOptionPane provides convenient static methods like showMessageDialog() and showConfirmDialog() to pop up alert boxes.\n\nQ7. Which method call shows a standard information alert box in Swing?\nA. JOptionPane.showMessageDialog(frame, \"Record saved successfully!\")\nB. JOptionPane.alert(\"Record saved!\")\nC. frame.showPopup(\"Record saved!\")\nD. Dialog.notify(\"Record saved!\")\n✔ Correct Answer: Option A\nExplanation: JOptionPane.showMessageDialog() displays a modal dialog with a message and an OK button.\n\nQ8. Which method registers a button click event handler in Swing?\nA. button.setClickAction(handler)\nB. button.addActionListener(e -> { ... })\nC. button.registerListener(handler)\nD. button.onClick(handler)\n✔ Correct Answer: Option B\nExplanation: addActionListener() registers an ActionListener whose actionPerformed() method executes when the button is clicked.\n\nQ9. Why is it important to wrap a JTable inside a JScrollPane before adding it to a container?\nA. Without JScrollPane, column headers are not displayed automatically and scrolling is unavailable\nB. JTable crashes without JScrollPane\nC. It connects JTable to JDBC\nD. It prevents editing table cells\n✔ Correct Answer: Option A\nExplanation: JScrollPane provides scrollbars and automatically renders the table header (column titles) above the data rows.\n\nQ10. Which method on DefaultTableModel clears all existing rows before reloading fresh database records?\nA. model.clear()\nB. model.setRowCount(0)\nC. model.deleteAll()\nD. model.reset()\n✔ Correct Answer: Option B\nExplanation: Calling model.setRowCount(0) clears all existing data rows, preventing duplicate rows when refreshing table contents.\n\nQ11. How is a single row of database values added to a DefaultTableModel named 'model'?\nA. model.addRow(new Object[]{id, title, author, price})\nB. model.insertRecord(id, title, author, price)\nC. model.append(new String[]{id, title})\nD. model.pushRow(id, title, author)\n✔ Correct Answer: Option A\nExplanation: DefaultTableModel.addRow(Object[] rowData) appends a row of column values to the model, which updates the view.\n\nQ12. Which thread in Java is responsible for dispatching Swing GUI events and repainting components?\nA. The Main Thread\nB. The Garbage Collector Thread\nC. The Event Dispatch Thread (EDT)\nD. The Database Worker Thread\n✔ Correct Answer: Option C\nExplanation: Swing is single-threaded; all GUI rendering and user event callbacks execute on the Event Dispatch Thread (EDT).\n\nQ13. What happens if a long-running, blocking JDBC database query is executed directly on the Swing Event Dispatch Thread (EDT)?\nA. The GUI freezes and stops responding to user interactions until the query completes\nB. The database query is cancelled immediately\nC. The JVM starts a background thread automatically\nD. A DeadlockException is thrown\n✔ Correct Answer: Option A\nExplanation: Blocking the EDT freezes UI painting and event handling, making the application appear unresponsive (spinning cursor).\n\nQ14. Which Swing utility class is designed to run time-consuming database background tasks without freezing the GUI?\nA. ThreadManager\nB. SwingWorker\nC. BackgroundRunner\nD. AsyncHelper\n✔ Correct Answer: Option B\nExplanation: javax.swing.SwingWorker performs background work on a worker thread and publishes results back to the EDT safely.\n\nQ15. Which method on a JTextField clears its contents after adding a record successfully?\nA. textField.clear()\nB. textField.setText(\"\")\nC. textField.reset()\nD. textField.empty()\n✔ Correct Answer: Option B\nExplanation: Calling setText(\"\") resets the input field to an empty string, clearing it for the next user entry.\n"}, {"id": "f28", "group": "Assignments 19–30 · MCQ Quiz Bank", "path": "Assignments_19-30_Quiz/Assignment_25_MCQ_Quiz.txt", "label": "Assignment_25 · MCQ Quiz.txt", "name": "Assignment_25_MCQ_Quiz.txt", "md": false, "text": "EXPERIMENT 25 • PRACTICALS QUIZ\nAssignment 25 — Threads Using the Thread Class and Lifecycle\n============================================================\nPractical Scope & Context: Create multiple concurrent threads by extending the Thread class, inspect thread lifecycle states, and control execution with sleep() and join().\n============================================================\n\nQ1. Which method must a class override when extending the java.lang.Thread class to define its task?\nA. start()\nB. run()\nC. execute()\nD. main()\n✔ Correct Answer: Option B\nExplanation: The run() method contains the executable code that defines the thread's unit of work.\n\nQ2. Which method is called to create a new call stack and schedule a thread for execution by the JVM?\nA. thread.run()\nB. thread.start()\nC. thread.init()\nD. thread.execute()\n✔ Correct Answer: Option B\nExplanation: start() allocates a new call stack and transitions the thread to Runnable, causing the JVM to invoke run() asynchronously.\n\nQ3. What happens if a developer directly calls thread.run() instead of thread.start()?\nA. A new operating system thread is launched\nB. The code runs synchronously in the current caller thread without starting a new thread\nC. An IllegalThreadStateException is thrown immediately\nD. The program enters a deadlock state\n✔ Correct Answer: Option B\nExplanation: Calling run() directly is merely a regular method invocation on the current thread, defeating multithreading.\n\nQ4. What initial state is a thread in immediately after 'new Thread()' before start() is invoked?\nA. RUNNABLE\nB. WAITING\nC. NEW\nD. TIMED_WAITING\n✔ Correct Answer: Option C\nExplanation: Before start() is called, a thread instance is in the Thread.State.NEW lifecycle state.\n\nQ5. Which method causes the currently running thread to pause execution for a specified duration in milliseconds?\nA. Thread.pause(1000)\nB. Thread.sleep(1000)\nC. Thread.wait(1000)\nD. Thread.yield(1000)\n✔ Correct Answer: Option B\nExplanation: Thread.sleep(millis) suspends the current thread's execution for the given duration without releasing held object locks.\n\nQ6. Which checked exception must be handled or declared when calling Thread.sleep() or thread.join()?\nA. ThreadInterruptedException\nB. InterruptedException\nC. TimeoutException\nD. ExecutionException\n✔ Correct Answer: Option B\nExplanation: InterruptedException is thrown when another thread interrupts the currently sleeping or waiting thread via interrupt().\n\nQ7. What is the purpose of invoking t1.join() in the main thread?\nA. It merges two thread memories into one\nB. It causes the calling thread to pause and wait until thread t1 completes its execution\nC. It cancels thread t1 immediately\nD. It restarts thread t1 from the beginning\n✔ Correct Answer: Option B\nExplanation: join() blocks the calling thread until the target thread dies or finishes its run() method.\n\nQ8. What happens if you attempt to call start() on an already-started or terminated Thread object?\nA. The thread restarts from the beginning\nB. An IllegalThreadStateException is thrown\nC. It returns false\nD. It is silently ignored\n✔ Correct Answer: Option B\nExplanation: A thread cannot be restarted once started; invoking start() a second time throws IllegalThreadStateException.\n\nQ9. What lifecycle state does a thread enter when it finishes executing its run() method?\nA. DEAD\nB. DESTROYED\nC. TERMINATED\nD. STOPPED\n✔ Correct Answer: Option C\nExplanation: When run() finishes normally or abnormally, the thread reaches the Thread.State.TERMINATED state.\n\nQ10. Which method retrieves the current lifecycle state of a Thread object?\nA. thread.getStatus()\nB. thread.getState()\nC. thread.getLifecycle()\nD. thread.state()\n✔ Correct Answer: Option B\nExplanation: thread.getState() returns one of the Thread.State enum constants (NEW, RUNNABLE, BLOCKED, WAITING, TIMED_WAITING, TERMINATED).\n\nQ11. What is the default thread priority assigned to newly created threads in Java?\nA. 1 (Thread.MIN_PRIORITY)\nB. 5 (Thread.NORM_PRIORITY)\nC. 10 (Thread.MAX_PRIORITY)\nD. 0\n✔ Correct Answer: Option B\nExplanation: The default priority of a thread in Java is Thread.NORM_PRIORITY, which equals 5.\n\nQ12. What method hints to the thread scheduler that the current thread is willing to yield its current use of a processor?\nA. Thread.sleep(0)\nB. Thread.yield()\nC. Thread.stop()\nD. Thread.suspend()\n✔ Correct Answer: Option B\nExplanation: Thread.yield() signals the scheduler that the running thread can yield CPU time to other equal-priority runnable threads.\n\nQ13. What is a daemon thread in Java?\nA. A thread that has maximum execution priority\nB. A background service thread that does not prevent the JVM from exiting when all user threads finish\nC. A thread that communicates with remote databases\nD. A thread created by the operating system kernel only\n✔ Correct Answer: Option B\nExplanation: Daemon threads (e.g. Garbage Collector) run in the background; the JVM terminates when all non-daemon user threads finish.\n\nQ14. Which method marks a thread as a daemon thread before starting it?\nA. thread.setDaemon(true)\nB. thread.makeDaemon()\nC. thread.asDaemon()\nD. thread.setService(true)\n✔ Correct Answer: Option A\nExplanation: setDaemon(true) designates the thread as a daemon, but must be invoked before calling start().\n\nQ15. Why is the stop() method in java.lang.Thread deprecated and strongly discouraged?\nA. It slows down CPU clock cycles\nB. It is inherently unsafe because it abruptly releases all locked monitors, leaving shared objects in an inconsistent state\nC. It cannot be compiled on 64-bit systems\nD. It requires root privileges\n✔ Correct Answer: Option B\nExplanation: Thread.stop() forcibly terminates threads and releases locks unconditionally, risking severe data corruption.\n"}, {"id": "f29", "group": "Assignments 19–30 · MCQ Quiz Bank", "path": "Assignments_19-30_Quiz/Assignment_26_MCQ_Quiz.txt", "label": "Assignment_26 · MCQ Quiz.txt", "name": "Assignment_26_MCQ_Quiz.txt", "md": false, "text": "EXPERIMENT 26 • PRACTICALS QUIZ\nAssignment 26 — Multiple Threads Using Runnable Interface & Synchronization\n============================================================\nPractical Scope & Context: Create and execute multiple concurrent threads using the Runnable interface, share resources safely, and apply synchronization to avoid race conditions.\n============================================================\n\nQ1. What is the primary advantage of implementing the Runnable interface over extending the Thread class in Java?\nA. Runnable threads run at higher clock speed\nB. Since Java allows only single class inheritance, implementing Runnable leaves the class free to extend another class\nC. Runnable does not require handling InterruptedException\nD. Runnable threads automatically synchronize their variables\n✔ Correct Answer: Option B\nExplanation: Java does not support multiple class inheritance; implementing Runnable allows extending a domain class while defining executable tasks.\n\nQ2. What single abstract method is declared in the java.lang.Runnable functional interface?\nA. void execute()\nB. void run()\nC. void start()\nD. boolean call()\n✔ Correct Answer: Option B\nExplanation: Runnable declares exactly one abstract method: public void run().\n\nQ3. How do you start a new thread using a Runnable task named 'myTask'?\nA. myTask.start()\nB. new Thread(myTask).start()\nC. Thread.run(myTask)\nD. myTask.run()\n✔ Correct Answer: Option B\nExplanation: You pass the Runnable target to the Thread constructor: new Thread(myTask).start().\n\nQ4. What is a 'race condition' in multithreaded programming?\nA. Two threads running on two different CPUs\nB. A flaw where concurrent execution order across threads alters the outcome, corrupting shared data\nC. A competition to see which thread finishes first for logging purposes\nD. A thread reaching MAX_PRIORITY\n✔ Correct Answer: Option B\nExplanation: A race condition occurs when concurrent threads access and modify shared state without synchronization, yielding unpredictable outcomes.\n\nQ5. Which Java keyword is used to establish mutual exclusion so only one thread can execute a critical section at a time?\nA. volatile\nB. synchronized\nC. transient\nD. atomic\n✔ Correct Answer: Option B\nExplanation: The synchronized keyword acquires an intrinsic object lock (monitor), guaranteeing mutual exclusion.\n\nQ6. When a synchronized instance method executes, which object's intrinsic monitor lock is acquired?\nA. The Thread class object\nB. The 'this' instance on which the method was invoked\nC. The JVM runtime monitor\nD. The main thread object\n✔ Correct Answer: Option B\nExplanation: Synchronizing an instance method automatically locks the monitor associated with 'this' instance.\n\nQ7. When a static synchronized method executes, which monitor lock is acquired?\nA. The Class object representing the enclosing class (e.g. MyClass.class)\nB. The caller thread object\nC. The root object of the heap\nD. No lock is acquired\n✔ Correct Answer: Option A\nExplanation: A synchronized static method acquires the monitor lock on the java.lang.Class object of that class.\n\nQ8. What is the purpose of the 'volatile' keyword applied to a field shared across threads?\nA. It makes writes to the field atomic for all 64-bit complex objects\nB. It guarantees that reads and writes are always read directly from main memory rather than CPU local caches\nC. It locks the field during iteration\nD. It prevents the field from being serialized\n✔ Correct Answer: Option B\nExplanation: volatile ensures visibility across threads by disabling thread-local CPU register caching for that variable.\n\nQ9. Which method pair in java.lang.Object is used for inter-thread communication to pause and notify threads?\nA. pause() and resume()\nB. wait() and notify() / notifyAll()\nC. sleep() and wake()\nD. block() and release()\n✔ Correct Answer: Option B\nExplanation: wait() releases the lock and waits; notify() or notifyAll() wakes up waiting threads on that object's monitor.\n\nQ10. What happens if a thread calls wait() on an object without holding that object's synchronized monitor lock?\nA. It executes normally\nB. An IllegalMonitorStateException is thrown\nC. The thread sleeps for 1 second\nD. A NullPointerException is thrown\n✔ Correct Answer: Option B\nExplanation: Calling wait(), notify(), or notifyAll() without owning the object monitor throws IllegalMonitorStateException at runtime.\n\nQ11. What is a 'deadlock' in Java multithreading?\nA. A thread consuming 100% of the CPU\nB. A state where two or more threads are permanently blocked, each waiting for a lock held by the other\nC. A thread terminating before the main method\nD. A database connection closing unexpectedly\n✔ Correct Answer: Option B\nExplanation: Deadlock occurs when thread A holds Lock 1 and waits for Lock 2, while thread B holds Lock 2 and waits for Lock 1.\n\nQ12. In Java 8+, how can a Runnable task be implemented cleanly without creating a separate named class?\nA. Using a lambda expression: () -> { ... }\nB. Using a pointer\nC. Using a PreparedStatement\nD. Using a synchronized struct\n✔ Correct Answer: Option A\nExplanation: Because Runnable is a functional interface with a single abstract method run(), it can be instantiated via lambda syntax: () -> { ... }.\n\nQ13. What is the key difference between Runnable and java.util.concurrent.Callable?\nA. Callable cannot be run asynchronously\nB. Callable.call() can return a value and throw checked exceptions, whereas Runnable.run() returns void and cannot throw checked exceptions\nC. Runnable requires Java 21\nD. Callable is only for GUI threads\n✔ Correct Answer: Option B\nExplanation: Callable\u003cV> defines V call() throws Exception, returning a typed result and propagating checked exceptions.\n\nQ14. Which framework in java.util.concurrent manages a pool of reusable worker threads to execute Runnable tasks efficiently?\nA. ThreadController\nB. ExecutorService\nC. TaskDispatcher\nD. ThreadBank\n✔ Correct Answer: Option B\nExplanation: ExecutorService (created via Executors.newFixedThreadPool()) decouples task submission from thread management.\n\nQ15. What is the effect of invoking notifyAll() instead of notify()?\nA. All waiting threads on that object's monitor are woken up to compete for the lock, rather than just an arbitrary single thread\nB. It kills all active threads\nC. It notifies threads on all objects in the JVM\nD. It releases memory locks permanently\n✔ Correct Answer: Option A\nExplanation: notify() wakes up an arbitrary single waiting thread, whereas notifyAll() awakens all threads waiting on that monitor.\n"}, {"id": "f30", "group": "Assignments 19–30 · MCQ Quiz Bank", "path": "Assignments_19-30_Quiz/Assignment_27_MCQ_Quiz.txt", "label": "Assignment_27 · MCQ Quiz.txt", "name": "Assignment_27_MCQ_Quiz.txt", "md": false, "text": "EXPERIMENT 27 • PRACTICALS QUIZ\nAssignment 27 — Socket Programming: Client/Server Communication\n============================================================\nPractical Scope & Context: Develop a Java network application demonstrating client-server socket communication over TCP/IP using ServerSocket and Socket classes.\n============================================================\n\nQ1. Which transport protocol is used by the Java Socket and ServerSocket classes?\nA. UDP (User Datagram Protocol)\nB. TCP (Transmission Control Protocol)\nC. ICMP\nD. ARP\n✔ Correct Answer: Option B\nExplanation: Socket and ServerSocket establish reliable, connection-oriented byte streams based on TCP/IP.\n\nQ2. Which class is used on the server side to listen for incoming client connections on a specific port?\nA. Socket\nB. ServerSocket\nC. DatagramSocket\nD. HttpServer\n✔ Correct Answer: Option B\nExplanation: java.net.ServerSocket binds to a port and waits for incoming client requests over the network.\n\nQ3. Which blocking method on ServerSocket listens for a connection and returns a Socket when a client connects?\nA. server.listen()\nB. server.connect()\nC. server.accept()\nD. server.receive()\n✔ Correct Answer: Option C\nExplanation: accept() blocks until an incoming client connection is received, then returns a Socket dedicated to that client.\n\nQ4. Which class is instantiated by a client to connect to a server located at 'localhost' on port 5000?\nA. new ClientSocket(\"localhost\", 5000)\nB. new Socket(\"localhost\", 5000)\nC. new ServerSocket(\"localhost\", 5000)\nD. new NetworkStream(\"localhost\", 5000)\n✔ Correct Answer: Option B\nExplanation: new Socket(host, port) creates a stream socket and connects it to the specified port number on the named host.\n\nQ5. Which method on a Socket object is used to obtain a stream for reading data sent from the remote endpoint?\nA. socket.readStream()\nB. socket.getInputStream()\nC. socket.getReader()\nD. socket.openInput()\n✔ Correct Answer: Option B\nExplanation: getInputStream() returns an InputStream for reading bytes from this socket.\n\nQ6. Which method on a Socket object is used to obtain a stream for transmitting data to the remote endpoint?\nA. socket.getOutputStream()\nB. socket.writeStream()\nC. socket.getWriter()\nD. socket.sendStream()\n✔ Correct Answer: Option A\nExplanation: getOutputStream() returns an OutputStream for sending bytes to the other side of the socket connection.\n\nQ7. Which classes are commonly chained to read text lines efficiently from a socket input stream?\nA. new BufferedReader(new InputStreamReader(socket.getInputStream()))\nB. new FileReader(socket.getInputStream())\nC. new ObjectInputStream(socket.getInputStream())\nD. new Scanner(new File(socket.getInputStream()))\n✔ Correct Answer: Option A\nExplanation: InputStreamReader bridges byte-to-char conversion and BufferedReader enables efficient line-by-line reading via readLine().\n\nQ8. In 'new PrintWriter(socket.getOutputStream(), true)', what does the second boolean argument 'true' enable?\nA. Data encryption\nB. Auto-flushing (automatically flushes output buffer whenever println() is called)\nC. Append mode\nD. Binary mode\n✔ Correct Answer: Option B\nExplanation: Setting autoFlush to true ensures messages are immediately transmitted across the network upon println() without manual flush().\n\nQ9. What happens if a client attempts to connect using 'new Socket(\"localhost\", 9999)' when no server is listening on port 9999?\nA. The constructor blocks indefinitely\nB. A java.net.ConnectException: Connection refused is thrown\nC. A NullPointerException is thrown\nD. The port is opened automatically\n✔ Correct Answer: Option B\nExplanation: If no application is listening on the destination IP/port, the TCP handshake is rejected, throwing ConnectException.\n\nQ10. Which method terminates an active network connection on a Socket?\nA. socket.disconnect()\nB. socket.terminate()\nC. socket.close()\nD. socket.halt()\n✔ Correct Answer: Option C\nExplanation: close() closes the socket, releasing the underlying network connection and associated streams.\n\nQ11. In socket programming, what loopback IP address corresponds to 'localhost'?\nA. 192.168.1.1\nB. 127.0.0.1\nC. 10.0.0.1\nD. 255.255.255.0\n✔ Correct Answer: Option B\nExplanation: 127.0.0.1 is the standard IPv4 loopback address for communicating with services on the local machine.\n\nQ12. What architecture pattern is used by a multi-client chat server to handle multiple simultaneous client connections?\nA. Handling each accepted client socket in a separate dedicated thread\nB. Opening 100 different port numbers on the same machine\nC. Running multiple operating systems\nD. Polling each client with a 10-second sleep interval\n✔ Correct Answer: Option A\nExplanation: The main server thread loops on accept(), handing off each accepted client Socket to a worker thread for concurrent I/O.\n\nQ13. Which Java classes are used for connectionless UDP datagram networking instead of TCP stream sockets?\nA. DatagramSocket and DatagramPacket\nB. UdpClient and UdpServer\nC. PacketStream and RawSocket\nD. BroadcastSocket and MessagePacket\n✔ Correct Answer: Option A\nExplanation: Java supports UDP using java.net.DatagramSocket (for sending/receiving) and java.net.DatagramPacket (for data payloads).\n\nQ14. What occurs when the client abruptly closes its socket while the server is waiting in in.readLine()?\nA. readLine() returns null (indicating end of stream) or throws a SocketException\nB. The server computer reboots\nC. readLine() returns the string \"CLOSED\"\nD. The server hangs indefinitely\n✔ Correct Answer: Option A\nExplanation: End of stream (EOF) in socket readers is signaled by readLine() returning null, or a SocketException on forceful resets.\n\nQ15. Which package contains the networking classes Socket, ServerSocket, and InetAddress?\nA. java.io\nB. java.net\nC. javax.net\nD. java.web\n✔ Correct Answer: Option B\nExplanation: Standard Java socket networking infrastructure is housed in the java.net package.\n"}, {"id": "f31", "group": "Assignments 19–30 · MCQ Quiz Bank", "path": "Assignments_19-30_Quiz/Assignment_28_MCQ_Quiz.txt", "label": "Assignment_28 · MCQ Quiz.txt", "name": "Assignment_28_MCQ_Quiz.txt", "md": false, "text": "EXPERIMENT 28 • PRACTICALS QUIZ\nAssignment 28 — Remote Method Invocation (RMI)\n============================================================\nPractical Scope & Context: Develop a distributed Java application demonstrating Remote Method Invocation (RMI) using remote interfaces, stubs/skeletons, UnicastRemoteObject, and rmiregistry.\n============================================================\n\nQ1. What is the primary purpose of Java Remote Method Invocation (RMI)?\nA. To compress multimedia files for web streaming\nB. To allow an object running in one JVM to invoke methods on an object in another JVM (even on a remote host)\nC. To compile Java source code to C++\nD. To replace relational databases with flat files\n✔ Correct Answer: Option B\nExplanation: RMI enables transparent, object-oriented distributed computing across different Java Virtual Machines over the network.\n\nQ2. Which interface must all RMI remote service interfaces extend in Java?\nA. java.io.Serializable\nB. java.rmi.Remote\nC. java.lang.Runnable\nD. java.rmi.server.RemoteServer\n✔ Correct Answer: Option B\nExplanation: Any interface exposing remote methods must extend the marker interface java.rmi.Remote.\n\nQ3. What checked exception must every method declared in an RMI remote interface declare in its 'throws' clause?\nA. java.io.IOException\nB. java.rmi.RemoteException\nC. java.lang.ClassNotFoundException\nD. java.net.SocketException\n✔ Correct Answer: Option B\nExplanation: RemoteException is mandatory because network communication can fail at any point during remote invocations.\n\nQ4. In Java RMI, what role does the client-side 'stub' play?\nA. It executes the business logic on the client machine\nB. It acts as a local proxy for the remote object, marshaling method parameters and sending them across the network\nC. It stores database tables on client disk\nD. It acts as the web server\n✔ Correct Answer: Option B\nExplanation: The stub sits on the client side, intercepts method calls, marshals parameters, and sends the call over the wire.\n\nQ5. What is 'marshaling' in the context of Java RMI?\nA. Compiling .java files into .class files\nB. Converting method call arguments and objects into a serialized byte stream for network transmission\nC. Assigning IP addresses to remote servers\nD. Sorting array elements concurrently\n✔ Correct Answer: Option B\nExplanation: Marshaling packages method call parameters and return values into a standardized serialized byte stream.\n\nQ6. Which class is commonly extended by remote object implementation classes to support point-to-point communication?\nA. java.rmi.server.UnicastRemoteObject\nB. java.rmi.RemoteObject\nC. java.net.Socket\nD. java.rmi.server.RemoteServer\n✔ Correct Answer: Option A\nExplanation: UnicastRemoteObject exports the remote object so it can listen on an anonymous TCP port for incoming remote calls.\n\nQ7. What requirement must custom object parameters and return types satisfy to be passed across an RMI remote call?\nA. They must extend Thread\nB. They must implement java.io.Serializable\nC. They must declare a main() method\nD. They must be declared abstract\n✔ Correct Answer: Option B\nExplanation: Objects transmitted across JVM boundaries by value must implement Serializable to allow serialization and deserialization.\n\nQ8. Which utility program or service acts as the naming registry for binding and looking up remote objects in RMI?\nA. rmiregistry\nB. javadoc\nC. appletviewer\nD. jdb\n✔ Correct Answer: Option A\nExplanation: rmiregistry is the bootstrap naming service that maps human-readable names to remote object references.\n\nQ9. What is the default TCP port number used by the RMI registry (rmiregistry)?\nA. 8080\nB. 3306\nC. 1099\nD. 21\n✔ Correct Answer: Option C\nExplanation: The standard default port for rmiregistry in Java is port 1099.\n\nQ10. Which method is invoked on java.rmi.Naming by the server to publish a remote object under a specific name in the registry?\nA. Naming.publish()\nB. Naming.rebind(url, object)\nC. Naming.register()\nD. Naming.export()\n✔ Correct Answer: Option B\nExplanation: Naming.rebind(\"rmi://localhost/ServiceName\", obj) binds or replaces the specified name with the remote object in the registry.\n\nQ11. Which method is called on java.rmi.Naming by the client to obtain a remote object reference?\nA. Naming.get()\nB. Naming.lookup(url)\nC. Naming.connect()\nD. Naming.find()\n✔ Correct Answer: Option B\nExplanation: Naming.lookup(\"rmi://hostname:port/ServiceName\") queries the registry and returns the remote stub reference.\n\nQ12. When a client receives a remote object reference from Naming.lookup(), what must the client do before invoking remote methods?\nA. Cast the returned Remote reference to the remote interface type\nB. Recompile the client code\nC. Restart the JVM\nD. Open a manual TCP socket\n✔ Correct Answer: Option A\nExplanation: lookup() returns java.rmi.Remote; the client must cast it to the specific remote interface (e.g. (CalculatorService) Naming.lookup(...)).\n\nQ13. In RMI, what is the server-side counterpart to the client stub historically called?\nA. Dispatcher\nB. Skeleton\nC. Proxy\nD. Socket\n✔ Correct Answer: Option B\nExplanation: The skeleton receives incoming marshaled calls on the server, unmarshals parameters, and invokes the real service object.\n\nQ14. What command-line tool was historically used in older Java versions to generate stubs and skeletons from compiled class files?\nA. rmic\nB. javac\nC. javap\nD. jar\n✔ Correct Answer: Option A\nExplanation: The rmic (RMI Compiler) compiler generated stub and skeleton classes (modern Java uses dynamic proxies instead).\n\nQ15. Which exception is thrown if a client attempts to lookup a name that has not been registered in the RMI registry?\nA. java.rmi.NotBoundException\nB. java.lang.NullPointerException\nC. java.sql.SQLException\nD. java.net.UnknownHostException\n✔ Correct Answer: Option A\nExplanation: NotBoundException is thrown if the requested service name is not bound in the RMI registry.\n"}, {"id": "f32", "group": "Assignments 19–30 · MCQ Quiz Bank", "path": "Assignments_19-30_Quiz/Assignment_29_MCQ_Quiz.txt", "label": "Assignment_29 · MCQ Quiz.txt", "name": "Assignment_29_MCQ_Quiz.txt", "md": false, "text": "EXPERIMENT 29 • PRACTICALS QUIZ\nAssignment 29 — JavaServer Pages (JSP) Basics & Dynamic Form Processing\n============================================================\nPractical Scope & Context: Develop dynamic web applications using JavaServer Pages (JSP), form submission, request parameter extraction, implicit objects, and scriptlet/expression tags.\n============================================================\n\nQ1. What technology does a JSP page translate into behind the scenes during its lifecycle?\nA. A client-side JavaScript file\nB. A Java Servlet (extending HttpServlet)\nC. A static HTML page stored in the database\nD. An XML schema file\n✔ Correct Answer: Option B\nExplanation: The JSP container (e.g., Apache Tomcat) compiles each JSP into a standard Java Servlet source file and compiles it into bytecode.\n\nQ2. Which JSP tag is used to evaluate a Java expression and insert the resulting string directly into the HTML output?\nA. \u003c%! ... %>\nB. \u003c%-- ... --%>\nC. \u003c%= ... %>\nD. \u003c%@ ... %>\n✔ Correct Answer: Option C\nExplanation: The expression tag \u003c%= expr %> evaluates the expression and writes the output directly to the response stream (no semicolon allowed).\n\nQ3. Which JSP tag is used to write general multi-line Java statements (scriptlets)?\nA. \u003c% ... %>\nB. \u003c%= ... %>\nC. \u003c%! ... %>\nD. \u003c%# ... %>\n✔ Correct Answer: Option A\nExplanation: Scriptlet tags \u003c% ... %> enclose arbitrary Java code statements that execute during page request handling.\n\nQ4. Which JSP tag is used to declare class-level variables or helper methods?\nA. \u003c% ... %>\nB. \u003c%! ... %>\nC. \u003c%= ... %>\nD. \u003c%@ ... %>\n✔ Correct Answer: Option B\nExplanation: Declaration tags \u003c%! ... %> declare fields and methods placed at the servlet class body level outside the service method.\n\nQ5. Which implicit object in JSP is used to read form data submitted via an HTML form?\nA. response\nB. request\nC. session\nD. application\n✔ Correct Answer: Option B\nExplanation: The implicit 'request' object (an instance of HttpServletRequest) encapsulates client HTTP request data and parameters.\n\nQ6. Which method on the implicit 'request' object extracts a single value from an HTML input field named 'studentName'?\nA. request.getAttribute(\"studentName\")\nB. request.getParameter(\"studentName\")\nC. request.getField(\"studentName\")\nD. request.readInput(\"studentName\")\n✔ Correct Answer: Option B\nExplanation: getParameter(name) returns the value of an HTTP request parameter sent via query string or form body as a String.\n\nQ7. What return value is produced by request.getParameter(\"age\") if the specified parameter was not submitted in the form?\nA. An empty string \"\"\nB. \"0\"\nC. null\nD. Throws a ParameterNotFoundException\n✔ Correct Answer: Option C\nExplanation: If a parameter name does not exist in the submitted request, getParameter() returns null.\n\nQ8. Which method is used when an HTML form has multiple checkboxes sharing the same name?\nA. request.getParameterList(name)\nB. request.getParameterValues(name)\nC. request.getParameterArray(name)\nD. request.getAllParameters(name)\n✔ Correct Answer: Option B\nExplanation: getParameterValues(String name) returns a String[] containing all selected values for multi-valued controls like checkboxes.\n\nQ9. Which implicit object is used to maintain conversational state for a specific user across multiple HTTP requests?\nA. request\nB. session\nC. application\nD. out\n✔ Correct Answer: Option B\nExplanation: The 'session' implicit object (HttpSession) allows storing user-specific attributes across consecutive web requests.\n\nQ10. Which implicit object represents the JspWriter used to send text content into the HTTP response stream?\nA. writer\nB. stream\nC. out\nD. console\n✔ Correct Answer: Option C\nExplanation: The 'out' implicit object is a javax.servlet.jsp.JspWriter used to print character data directly into the response.\n\nQ11. Which JSP directive is used to import Java packages such as java.sql.* or java.util.* into a JSP page?\nA. \u003c%@ include ... %>\nB. \u003c%@ page import=\"java.sql.*\" %>\nC. \u003c%@ taglib ... %>\nD. \u003c%! import java.sql.*; %>\n✔ Correct Answer: Option B\nExplanation: The page directive with the import attribute (\u003c%@ page import=\"...\" %>) imports classes and packages into the generated servlet.\n\nQ12. What is the proper syntax for a comment in JSP that is stripped before reaching the client's browser?\nA. \u003c!-- comment -->\nB. \u003c%-- comment --%>\nC. // comment\nD. /* comment */\n✔ Correct Answer: Option B\nExplanation: \u003c%-- ... --%> is a JSP server-side comment; it is stripped by the JSP compiler and never sent in the client HTML response.\n\nQ13. In which lifecycle phase of a JSP is the generated Java servlet compiled and initialized?\nA. jspInit()\nB. _jspService()\nC. jspDestroy()\nD. jspCompile()\n✔ Correct Answer: Option A\nExplanation: jspInit() is invoked once after servlet compilation and instantiation to initialize the JSP instance.\n\nQ14. Which method in the translated JSP servlet executes for every incoming client HTTP request?\nA. jspInit()\nB. doGet() only\nC. _jspService(HttpServletRequest, HttpServletResponse)\nD. serviceRequest()\n✔ Correct Answer: Option C\nExplanation: _jspService() handles each incoming HTTP request, executing the scriptlets, expressions, and HTML output generation.\n\nQ15. Which web server / servlet container is the reference implementation used to run JSP applications?\nA. NGINX\nB. Apache Tomcat\nC. Node.js\nD. Gunicorn\n✔ Correct Answer: Option B\nExplanation: Apache Tomcat is the widely used open-source Java Servlet and JSP web server container.\n"}, {"id": "f33", "group": "Assignments 19–30 · MCQ Quiz Bank", "path": "Assignments_19-30_Quiz/Assignment_30_MCQ_Quiz.txt", "label": "Assignment_30 · MCQ Quiz.txt", "name": "Assignment_30_MCQ_Quiz.txt", "md": false, "text": "EXPERIMENT 30 • PRACTICALS QUIZ\nAssignment 30 — JSP CRUD Operations with MySQL Database\n============================================================\nPractical Scope & Context: Develop full-stack web applications using JSP integrated with MySQL and JDBC to implement Create, Read, Update, and Delete (CRUD) operations on records (e.g. Employee or Patient Management).\n============================================================\n\nQ1. In a JSP CRUD application, which file or component typically renders the HTML table of all existing database records?\nA. The database schema script\nB. A JSP view page (e.g. view.jsp or index.jsp) executing a SELECT query and iterating over a ResultSet\nC. The web.xml configuration file\nD. The JDBC driver jar\n✔ Correct Answer: Option B\nExplanation: View JSP pages execute SELECT queries via JDBC and iterate over ResultSet rows to render HTML \u003ctr> and \u003ctd> table rows.\n\nQ2. How does an 'Edit' link in a JSP table row typically pass the primary key ID of the record to the edit form page?\nA. Via URL query string parameter: edit.jsp?id=\u003c%= id %>\nB. Using browser cookies only\nC. By modifying the database password\nD. Through an alert popup\n✔ Correct Answer: Option A\nExplanation: Passing IDs via HTTP GET query string parameters (edit.jsp?id=...) allows the target page to retrieve the specific record.\n\nQ3. On an update form page (edit.jsp), why is the primary key typically stored in a hidden input field?\nA. To encrypt it from MySQL\nB. To submit the unique ID to the update action without allowing the user to alter the primary key value: \u003cinput type=\"hidden\" name=\"id\" value=\"...\">\nC. To bypass input validation\nD. To increase form loading speed\n✔ Correct Answer: Option B\nExplanation: Hidden inputs preserve identifier values across POST submissions so the backend knows which record to update in the WHERE clause.\n\nQ4. Which HTTP redirect method on the implicit response object is commonly called after a successful INSERT or DELETE to return to the record list?\nA. response.forward(\"view.jsp\")\nB. response.sendRedirect(\"view.jsp\")\nC. response.navigate(\"view.jsp\")\nD. response.refresh()\n✔ Correct Answer: Option B\nExplanation: response.sendRedirect(url) sends an HTTP 302 redirect response instructing the client browser to request the updated list page.\n\nQ5. What is the primary difference between response.sendRedirect() and request.getRequestDispatcher().forward() in JSP?\nA. sendRedirect makes a brand new client-side request and updates browser URL; forward happens entirely on the server side without changing the URL\nB. sendRedirect only works with GET while forward only works with POST\nC. forward deletes session variables\nD. sendRedirect is deprecated\n✔ Correct Answer: Option A\nExplanation: sendRedirect sends a new request round-trip (client-side), whereas RequestDispatcher.forward forwards the existing request/response within the server.\n\nQ6. Why is the Post/Redirect/Get (PRG) design pattern implemented in JSP CRUD applications?\nA. To compress database tables\nB. To prevent accidental duplicate form submissions if the user refreshes the browser page after a POST request\nC. To encrypt database passwords in JSP\nD. To allow running without Apache Tomcat\n✔ Correct Answer: Option B\nExplanation: Redirecting after a POST ensures browser refresh invokes the GET view page rather than resubmitting the form POST data.\n\nQ7. Which SQL statement is used in delete.jsp to remove a specific employee or patient record?\nA. DROP RECORD FROM employees WHERE id = ?\nB. DELETE FROM employees WHERE id = ?\nC. REMOVE FROM employees WHERE id = ?\nD. TRUNCATE employees WHERE id = ?\n✔ Correct Answer: Option B\nExplanation: DELETE FROM table_name WHERE primary_key = ? is the standard SQL DML syntax to remove a targeted record.\n\nQ8. In an update JSP action, what happens if the developer forgets the WHERE clause: 'UPDATE employees SET salary = ?'?\nA. Only the first row in the table is updated\nB. Every single employee record in the entire database table is updated with the new salary\nC. The SQL query fails with a syntax error\nD. MySQL ignores the update\n✔ Correct Answer: Option B\nExplanation: Without a WHERE clause, UPDATE applies unconditionally to every row in the table, corrupting all records.\n\nQ9. In JSP CRUD, how should JDBC database connections be established efficiently in an enterprise architecture?\nA. Opening and never closing a new connection for every single query\nB. Using a DataSource connection pool configured in Tomcat (JNDI) to reuse database connections\nC. Using hardcoded global static strings without passwords\nD. Embedding database files inside the JSP pages\n✔ Correct Answer: Option B\nExplanation: JNDI DataSource connection pooling pre-allocates connections, eliminating the high latency of creating connections per request.\n\nQ10. Which Java design pattern separates presentation (JSP), control flow (Servlet), and database operations (JavaBean/DAO)?\nA. Singleton Pattern\nB. Model-View-Controller (MVC) Pattern\nC. Factory Pattern\nD. Observer Pattern\n✔ Correct Answer: Option B\nExplanation: MVC architecture uses JavaBeans/DAO as Model, JSP as View, and Servlets as Controller to cleanly separate concerns.\n\nQ11. What is a Data Access Object (DAO) class in a Java/JSP CRUD application?\nA. A class that handles HTML CSS styling\nB. A class that encapsulates all JDBC SQL queries and CRUD operations for a specific domain model\nC. A database server background thread\nD. An XML parser\n✔ Correct Answer: Option B\nExplanation: DAO isolates database interactions behind clean Java methods (e.g., save(), findById(), delete()), keeping JSP pages clean.\n\nQ12. What does a return value of ps.executeUpdate() > 0 signify after running an INSERT or UPDATE query in JSP?\nA. The operation affected at least one record, confirming successful persistence\nB. A database deadlock occurred\nC. The table was dropped\nD. The query returned an empty ResultSet\n✔ Correct Answer: Option A\nExplanation: executeUpdate() returns the count of affected rows; greater than 0 confirms the record was inserted or modified.\n\nQ13. Which JSP action tag is used to instantiate or locate a JavaBean component in a specified scope?\nA. \u003cjsp:useBean>\nB. \u003cjsp:setProperty>\nC. \u003cjsp:include>\nD. \u003cjsp:forward>\n✔ Correct Answer: Option A\nExplanation: \u003cjsp:useBean id=\"emp\" class=\"com.model.Employee\" scope=\"request\"/> locates or creates a bean instance.\n\nQ14. Which tag sets all properties of a JavaBean automatically from matching HTTP request parameter names?\nA. \u003cjsp:setProperty name=\"emp\" property=\"*\" />\nB. \u003cjsp:copyAll>\nC. \u003cjsp:setAllParameters>\nD. \u003cjsp:populate>\n✔ Correct Answer: Option A\nExplanation: property=\"*\" instructs the JSP engine to inspect form field names and automatically invoke matching setter methods on the bean.\n\nQ15. Which JSP tag library standard (JSTL) tag is commonly used instead of scriptlets to iterate through database records in a table?\nA. \u003cc:forEach items=\"${records}\" var=\"row\">\nB. \u003cc:loop>\nC. \u003cc:iterate>\nD. \u003cc:while>\n✔ Correct Answer: Option A\nExplanation: JSTL core library's \u003cc:forEach> provides clean, declarative iteration over collections and result sets without scriptlet code.\n"}, {"id": "f34", "group": "All Concepts", "path": "All_Concepts/Main.java", "label": "All Concepts · Main.java", "name": "Main.java", "md": false, "text": "import java.io.*;\nimport java.util.*;\nimport javax.swing.*;\nimport java.awt.FlowLayout;\nimport java.awt.GraphicsEnvironment;\nimport school.Helper;\n\ninterface Printable { void display(); }\n\nabstract class Person {\n    private String name;                         // encapsulation\n    Person(String name) { this.name = name; }    // constructor + this\n    public String getName() { return name; }\n    public void setName(String name) { this.name = name; }\n    abstract void role();                        // abstraction\n}\n\nclass InvalidMarksException extends Exception { // custom exception\n    InvalidMarksException(String message) { super(message); }\n}\n\nclass Student extends Person implements Printable {\n    private int marks;\n    static int count = 0;                        // static member\n    final int ID;                                // final field\n\n    Student(String name, int marks) throws InvalidMarksException {\n        super(name);                            // parent constructor\n        setMarks(marks);\n        ID = ++count;\n    }\n    Student(String name) throws InvalidMarksException { this(name, 0); } // constructor overloading\n\n    public void setMarks(int marks) throws InvalidMarksException {\n        if (marks \u003c 0 || marks > 100) throw new InvalidMarksException(\"Marks must be 0 to 100\");\n        this.marks = marks;\n    }\n    public int getMarks() { return marks; }\n\n    @Override void role() { System.out.println(\"Role: Student\"); }\n    @Override public void display() { System.out.println(ID + \": \" + getName() + \" = \" + marks); }\n\n    String result() { return result(40); }     // method overloading\n    String result(int passing) { return marks >= passing ? \"Pass\" : \"Fail\"; }\n\n    class Report {                              // non-static inner class\n        void print() { System.out.println(getName() + \" -> \" + result()); }\n    }\n}\n\npublic class Main {\n    static final String FILE = \"students.txt\"; // static + final\n\n    static void save(List\u003cStudent> students) throws IOException { // throws\n        try (FileWriter out = new FileWriter(FILE)) {\n            for (Student s : students) out.write(s.getName() + \",\" + s.getMarks() + \"\\n\");\n        }\n    }\n\n    static void readBack() throws IOException {\n        try (BufferedReader in = new BufferedReader(new FileReader(FILE))) {\n            String line;\n            while ((line = in.readLine()) != null) System.out.println(\"File: \" + line);\n        }\n    }\n\n    static void showGUI() {\n        JFrame frame = new JFrame(\"Student Demo\");\n        JButton button = new JButton(\"Click me\");\n        JLabel label = new JLabel(\"Waiting...\");\n        button.addActionListener(e -> label.setText(\"Button clicked!\")); // event handling (lambda)\n        JPanel panel = new JPanel(new FlowLayout());\n        panel.add(button); panel.add(label);\n        frame.add(panel);\n        frame.setSize(320, 120);\n        frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);\n        frame.setLocationRelativeTo(null);\n        frame.setVisible(true);\n    }\n\n    public static void main(String[] args) {\n        ArrayList\u003cStudent> students = new ArrayList\u003c>();\n        Vector\u003cString> subjects = new Vector\u003c>();  // Vector collection\n        subjects.add(\"Java\");\n        HashMap\u003cString, Integer> markMap = new HashMap\u003c>();\n        int[] numbers = {1, 2, 3};             // array\n        System.out.println(\"Array length: \" + numbers.length);\n\n        try {\n            Student a = new Student(\"Shine\", 95);\n            Student b = new Student(\"Rahul\");\n            students.add(a); students.add(b);\n\n            for (Student s : students) {       // enhanced for loop\n                Person p = s;                   // runtime polymorphism\n                p.role();\n                s.display();\n                new StudentPrinter(s).print(); // helper object\n                s.new Report().print();         // inner class\n                markMap.put(s.getName(), s.getMarks());\n            }\n\n            Printable anonymous = new Printable() {  // anonymous inner class\n                @Override public void display() { System.out.println(\"Anonymous implementation\"); }\n            };\n            anonymous.display();\n\n            Integer boxed = Integer.valueOf(a.getMarks()); // wrapper class\n            int unboxed = boxed;                           // auto-unboxing\n            System.out.println(\"Boxed score: \" + unboxed);\n            System.out.println(\"Map: \" + markMap);\n            System.out.println(\"Vector: \" + subjects);\n            System.out.println(Helper.message());         // user-defined package\n            save(students);\n            readBack();\n\n            try {                                 // nested try/catch\n                int zero = 0;\n                System.out.println(10 / zero);\n            } catch (ArithmeticException e) {\n                System.out.println(\"Handled division by zero\");\n            } finally {\n                System.out.println(\"Inner finally ran\");\n            }\n            if (args.length > 0 && args[0].equals(\"--gui\")) {\n                if (!GraphicsEnvironment.isHeadless()) SwingUtilities.invokeLater(Main::showGUI);\n                else System.out.println(\"GUI unavailable in headless environment\");\n            }\n        } catch (InvalidMarksException | IOException e) { // multi-catch\n            System.out.println(\"Error: \" + e.getMessage());\n        } finally {\n            System.out.println(\"Program complete\");\n        }\n    }\n\n    static class StudentPrinter {              // static nested class\n        private final Student student;\n        StudentPrinter(Student student) { this.student = student; }\n        void print() { System.out.println(\"Nested class: \" + student.getName()); }\n    }\n}\n"}, {"id": "f35", "group": "All Concepts", "path": "All_Concepts/school/Helper.java", "label": "All Concepts · Helper.java", "name": "Helper.java", "md": false, "text": "package school; // user-defined package\n\npublic final class Helper { // final class\n    private Helper() { }\n    public static String message() {\n        return \"Hello from school.Helper\";\n    }\n}\n"}, {"id": "f36", "group": "All Concepts", "path": "All_Concepts/LegacyApplet.java.txt", "label": "All Concepts · LegacyApplet.java.txt", "name": "LegacyApplet.java.txt", "md": false, "text": "// Historical example ONLY: Java applets are obsolete and not supported in modern Java.\n// Compile on a legacy Java environment if required by your coursework.\nimport java.applet.Applet;\nimport java.awt.Graphics;\n\npublic class LegacyApplet extends Applet {\n    @Override\n    public void paint(Graphics g) {\n        g.drawString(\"Hello Applet\", 30, 30);\n    }\n}\n"}, {"id": "f37", "group": "All Concepts", "path": "All_Concepts/README.txt", "label": "All Concepts · README.txt", "name": "README.txt", "md": false, "text": "JAVA ALL-CONCEPTS REVISION PROJECT\n\nRequires JDK 8+ for core syntax; tested with JDK 21.\n\nFrom this directory:\n  javac Main.java school/Helper.java\n  java Main\n  java Main --gui   (opens a Swing window on a computer with a desktop display)\n\nFiles:\n  Main.java       Combined console demo and optional Swing GUI\n  school/Helper.java  User-defined package and final class\n  LegacyApplet.java.txt  Legacy applet example only (not runnable in modern Java)\n\nThe program writes students.txt in the current working directory.\nSubjects include classes and objects, fields, methods, constructors, constructor overloading,\nthis and super, static and final, inheritance, abstract classes, interfaces, polymorphism,\nmethod overriding and overloading, encapsulation, arrays, ArrayList, Vector, HashMap,\ninner/nested/anonymous classes, wrapper classes, checked exceptions, custom exceptions,\nthrow/throws, nested try/catch/finally, multi-catch, file writing/reading, and Swing events.\n"}]</script>
+
+<script>
+(()=>{
+'use strict';
+let D=document,W=window,pipWin=null;const $=s=>D.querySelector(s);const docL=[];function onDoc(t,fn,cap){docL.push([t,fn,cap]);D.addEventListener(t,fn,cap)}
+const docs=()=>pipWin?[document,pipWin.document]:[document];
+const esc=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const store={get(k,d){try{const v=localStorage.getItem('np.'+k);return v===null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem('np.'+k,JSON.stringify(v))}catch(e){}}};
+const FONTS={consolas:'Consolas,"Cascadia Mono","SF Mono",Menlo,"DejaVu Sans Mono",monospace',cascadia:'"Cascadia Mono","Cascadia Code",Consolas,"SF Mono",Menlo,"DejaVu Sans Mono",monospace',courier:'"Courier New",Courier,"Liberation Mono",monospace',lucida:'"Lucida Console",Monaco,"DejaVu Sans Mono",monospace'};
+const S={theme:store.get('theme','dark'),wrap:store.get('wrap',true),status:store.get('status',true),zoom:store.get('zoom',100),font:store.get('font','consolas'),size:store.get('size',11)};
+
+/* ---------- data ---------- */
+const files=JSON.parse($('#data').textContent).map(f=>({...f,cur:f.text,orig:f.text,mdView:f.md,ta:null,untitled:false,scroll:[0,0]}));
+const byId=id=>files.find(f=>f.id===id);
+let order=files.map(f=>f.id), active=(files.find(f=>!f.web)||files[0]).id, recent=[], uN=0;
+const idx=f=>files.indexOf(f);
+$('#aboutTxt').textContent=files.filter(f=>!f.web).length+' files · Java assignments 1–18, MCQ quiz bank 19–30, and the All Concepts project.';
+
+/* ---------- helpers ---------- */
+const host=$('#host'), mirror=$('#mirror'), mdview=$('#mdview'), tabsEl=$('#tabs');
+let toastT;
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),2200)}
+const curF=()=>byId(active), curTA=()=>{const f=curF();return f&&f.ta};
+const isMdSrc=f=>!(f.md&&f.mdView);
+async function copyText(t){try{await W.navigator.clipboard.writeText(t);return true}catch(e){}
+  try{const a=document.createElement('textarea');a.value=t;a.style.cssText='position:fixed;opacity:0;top:0';D.body.appendChild(a);a.select();const ok=D.execCommand('copy');a.remove();return ok}catch(e){return false}}
+function download(name,data,mime){const b=data instanceof Blob?data:new Blob([data],{type:(mime||'text/plain')+';charset=utf-8'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),3000)}
+const kb=n=>n<1024?n+' B':(n/1024).toFixed(n<10240?1:0)+' KB';
+
+/* ---------- appearance ---------- */
+function applyTheme(){const r=S.theme==='system'?(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):S.theme;docs().forEach(d=>d.documentElement.setAttribute('data-theme',r))}
+matchMedia('(prefers-color-scheme: light)').addEventListener?.('change',()=>{if(S.theme==='system')applyTheme()});
+function applyView(){
+  const px=(S.size*4/3*S.zoom/100).toFixed(2)+'px';
+  docs().forEach(d=>{d.documentElement.style.setProperty('--fs',px);d.documentElement.style.setProperty('--mono',FONTS[S.font]||FONTS.consolas)});
+  $('#editor').classList.toggle('nowrap',!S.wrap);
+  files.forEach(f=>{if(f.ta)f.ta.wrap=S.wrap?'soft':'off'});
+  $('#status').classList.toggle('hide',!S.status);
+  $('#sZoom').textContent=S.zoom+'%';
+  setSwitch('#swWrap','#wrapL',S.wrap);setSwitch('#swStat','#statL',S.status);
+  $('#selTheme').value=S.theme;$('#selFont').value=S.font;$('#selSize').value=S.size;
+  renderMirror();
+}
+function setSwitch(b,l,v){$(b).setAttribute('aria-checked',v);$(l).textContent=v?'On':'Off'}
+function persist(){['theme','wrap','status','zoom','font','size'].forEach(k=>store.set(k,S[k]))}
+function zoom(d){S.zoom=d===0?100:Math.max(10,Math.min(500,S.zoom+d));persist();applyView()}
+const sz=$('#selSize');for(let n=8;n<=36;n++){const o=document.createElement('option');o.value=n;o.textContent=n;sz.appendChild(o)}
+
+/* ---------- tabs ---------- */
+function renderTabs(){
+  const sl=tabsEl.scrollLeft;tabsEl.innerHTML='';
+  order.forEach(id=>{const f=byId(id);const t=document.createElement('div');
+    t.className='tab'+(id===active?' active':'');t.dataset.id=id;t.title=f.path||f.label;t.setAttribute('role','tab');t.setAttribute('aria-selected',id===active);
+    t.innerHTML=`<span class="tt">${esc(f.label)}</span><button class="tx${f.cur!==f.orig?' mod':''}" tabindex="-1" aria-label="Close tab"><i class="mdot"></i><svg class="i"><use href="#i-x"/></svg></button>`;
+    tabsEl.appendChild(t)});
+  tabsEl.scrollLeft=sl;revealTab();chevs();
+}
+function revealTab(){const t=tabsEl.querySelector('.tab.active');if(!t)return;const l=t.offsetLeft,r=l+t.offsetWidth;
+  if(l<tabsEl.scrollLeft)tabsEl.scrollLeft=l-8;else if(r>tabsEl.scrollLeft+tabsEl.clientWidth)tabsEl.scrollLeft=r-tabsEl.clientWidth+8}
+function chevs(){const o=tabsEl.scrollWidth>tabsEl.clientWidth+1;$('#tabL').hidden=!o||tabsEl.scrollLeft<=0;$('#tabR').hidden=!o||tabsEl.scrollLeft+tabsEl.clientWidth>=tabsEl.scrollWidth-1}
+tabsEl.addEventListener('scroll',chevs);addEventListener('resize',()=>{chevs();revealTab()});
+tabsEl.addEventListener('wheel',e=>{if(Math.abs(e.deltaY)>Math.abs(e.deltaX)){tabsEl.scrollLeft+=e.deltaY;e.preventDefault()}},{passive:false});
+$('#tabL').onclick=()=>tabsEl.scrollBy({left:-340,behavior:'smooth'});
+$('#tabR').onclick=()=>tabsEl.scrollBy({left:340,behavior:'smooth'});
+tabsEl.addEventListener('click',e=>{const t=e.target.closest('.tab');if(!t)return;if(e.target.closest('.tx'))closeTab(t.dataset.id);else activate(t.dataset.id)});
+tabsEl.addEventListener('auxclick',e=>{const t=e.target.closest('.tab');if(t&&e.button===1){e.preventDefault();closeTab(t.dataset.id)}});
+tabsEl.addEventListener('mousedown',e=>{if(e.button===1)e.preventDefault()});
+function updateTabMod(f){const t=tabsEl.querySelector(`.tab[data-id="${f.id}"] .tx`);if(t)t.classList.toggle('mod',f.cur!==f.orig)}
+
+function ensureTA(f){
+  if(f.ta)return f.ta;
+  const t=document.createElement('textarea');t.className='ta';t.spellcheck=false;t.setAttribute('autocomplete','off');t.setAttribute('autocapitalize','off');
+  t.wrap=S.wrap?'soft':'off';t.value=f.cur;
+  t.addEventListener('input',()=>{f.cur=t.value;updateTabMod(f);updateStatus();if(F.open)scheduleFind()});
+  t.addEventListener('scroll',syncScroll);
+  ['keyup','click','select','focus','mouseup'].forEach(ev=>t.addEventListener(ev,updateStatus));
+  t.addEventListener('keydown',e=>{if(e.key==='Tab'&&!e.ctrlKey&&!e.altKey&&!e.metaKey&&!e.shiftKey){e.preventDefault();D.execCommand('insertText',false,'\t')}
+    if((e.ctrlKey||e.metaKey)&&f.md&&!e.shiftKey&&(e.key==='b'||e.key==='i')){e.preventDefault();mdAct(e.key)}});
+  t.addEventListener('wheel',e=>{if(e.ctrlKey){e.preventDefault();zoom(e.deltaY<0?10:-10)}},{passive:false});
+  host.appendChild(t);f.ta=t;return t;
+}
+function syncScroll(){const t=curTA();if(!t)return;mirror.scrollTop=t.scrollTop;mirror.scrollLeft=t.scrollLeft}
+mdview.addEventListener('wheel',e=>{if(e.ctrlKey){e.preventDefault();zoom(e.deltaY<0?10:-10)}},{passive:false});
+
+function activate(id,o={}){
+  const prev=curF();
+  if(prev&&prev.ta){prev.scroll=[prev.ta.scrollTop,prev.ta.scrollLeft];prev.ta.style.display='none'}
+  if(prev)prev.mdScroll=mdview.scrollTop;
+  if(!order.includes(id)){const i=idx(byId(id));let at=order.findIndex(x=>idx(byId(x))>i);if(at<0)at=order.length;order.splice(at,0,id)}
+  active=id;const f=byId(id);
+  if(F.open&&(f.web||!isMdSrc(f))){F.open=false;$('#find').hidden=true;F.matches=[]}
+  showView(f);renderTabs();
+  if(F.open){computeMatches();pickCur();renderMirror();updateFindUI()}
+  if(o.focus!==false)focusEditor();
+  updateStatus();
+}
+function showView(f){
+  $('#webview').style.display=f.web?'block':'none';
+  if(f.web){mdview.style.display='none';$('#mdtools').classList.remove('on');if(f.ta)f.ta.style.display='none';return}
+  const md=f.md&&f.mdView;
+  $('#mdtools').classList.toggle('on',!!f.md);
+  mdview.style.display=md?'block':'none';
+  if(md){mdview.innerHTML=mdToHtml(f.cur);mdview.scrollTop=f.mdScroll||0;if(f.ta)f.ta.style.display='none'}
+  else{const t=ensureTA(f);t.style.display='block';t.scrollTop=f.scroll[0];t.scrollLeft=f.scroll[1]}
+  syncScroll();
+}
+function focusEditor(){const f=curF();if(!f)return;if(isMdSrc(f)&&f.ta)f.ta.focus({preventScroll:true})}
+function newTab(md){
+  uN++;const f={id:'u'+uN+'_'+Date.now(),group:'Untitled',path:null,label:md?'Untitled.md':'Untitled',name:md?'Untitled.md':'Untitled.txt',md:!!md,text:'',cur:'',orig:'',mdView:false,ta:null,untitled:true,scroll:[0,0]};
+  files.push(f);order.push(f.id);activate(f.id);
+}
+function dlgUnsaved(f){return new Promise(res=>{
+  const el=mkModal(`<div class="dlg sm" role="dialog"><div class="dh">Notepad</div><div class="db">Do you want to save changes to <b>${esc(f.label)}</b>?</div><div class="df"><button class="btn pri" data-r="save">Save</button><button class="btn" data-r="discard">Don't save</button><button class="btn" data-r="cancel">Cancel</button></div></div>`,()=>res('cancel'));
+  el.addEventListener('click',e=>{const r=e.target.closest('[data-r]');if(r){closeModal();res(r.dataset.r)}});el.querySelector('.pri').focus()})}
+async function closeTab(id){
+  const f=byId(id);if(!f)return;
+  if(f.cur!==f.orig){const r=await dlgUnsaved(f);if(r==='cancel')return;if(r==='save'){const ok=await saveFile(f);if(!ok)return}else{f.cur=f.orig;if(f.ta)f.ta.value=f.orig}}
+  const i=order.indexOf(id);order.splice(i,1);
+  if(f.ta){f.ta.remove();f.ta=null}
+  if(!f.untitled){recent=[id,...recent.filter(x=>x!==id)].slice(0,10)}else{files.splice(idx(f),1)}
+  if(active===id){
+    if(!order.length){newTab(false);return}
+    active=null;activate(order[Math.min(i,order.length-1)]);
+  }else renderTabs();
+}
+
+/* ---------- status ---------- */
+function updateStatus(){
+  const f=curF();if(!f)return;const md=f.md&&f.mdView;const t=f.ta;
+  if(f.web){$('#sPos').textContent='Ln 1, Col 1';$('#sChars').textContent='chatgpt.com';$('#sType').textContent='Web page';return}
+  if(md){$('#sPos').textContent='Ln 1, Col 1';$('#sChars').textContent=f.cur.length.toLocaleString()+' characters';$('#sType').textContent='Formatted';return}
+  $('#sType').textContent=f.md?'Markdown':'Plain text';
+  if(!t)return;const v=t.value,s=t.selectionStart,e=t.selectionEnd;
+  let ln=1,p=-1;while((p=v.indexOf('\n',p+1))!==-1&&p<s)ln++;
+  $('#sPos').textContent=`Ln ${ln}, Col ${s-(v.lastIndexOf('\n',s-1))}`;
+  $('#sChars').textContent=(e>s?`${(e-s).toLocaleString()} of `:'')+v.length.toLocaleString()+' characters';
+}
+onDoc('selectionchange',()=>{const t=curTA();if(t&&D.activeElement===t)updateStatus()});
+$('#sType').onclick=()=>{const f=curF();if(f&&f.md)toggleMd(!f.mdView)};
+function toggleMd(fmt){const f=curF();if(!f.md)return;if(f.ta)f.cur=f.ta.value;if(f.ta)f.scroll=[f.ta.scrollTop,f.ta.scrollLeft];f.mdView=fmt;if(fmt)closeFind();if(f.ta)f.ta.style.display='none';showView(f);renderMirror();updateStatus();if(!fmt)focusEditor()}
+
+/* ---------- markdown ---------- */
+function inline(s){return esc(s).replace(/`([^`]+)`/g,'<code>$1</code>').replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>').replace(/(^|[^*])\*([^*\s][^*]*)\*/g,'$1<i>$2</i>').replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>')}
+function mdToHtml(src){
+  const L=src.replace(/\r/g,'').split('\n'),out=[];let i=0,list=null,para=[];
+  const fp=()=>{if(para.length){out.push('<p>'+inline(para.join(' '))+'</p>');para=[]}},cl=()=>{if(list){out.push('</'+list+'>');list=null}};
+  while(i<L.length){const l=L[i];let m;
+    if(/^```/.test(l)){fp();cl();const c=[];i++;while(i<L.length&&!/^```/.test(L[i]))c.push(L[i++]);i++;out.push('<pre><code>'+esc(c.join('\n'))+'</code></pre>');continue}
+    if(m=/^(#{1,6})\s+(.*)$/.exec(l)){fp();cl();out.push(`<h${m[1].length}>${inline(m[2])}</h${m[1].length}>`)}
+    else if(m=/^\s*[-*]\s+(.*)$/.exec(l)){fp();if(list!=='ul'){cl();out.push('<ul>');list='ul'}out.push('<li>'+inline(m[1])+'</li>')}
+    else if(m=/^\s*\d+\.\s+(.*)$/.exec(l)){fp();if(list!=='ol'){cl();out.push('<ol>');list='ol'}out.push('<li>'+inline(m[1])+'</li>')}
+    else if(!l.trim()){fp();cl()}
+    else{cl();para.push(l.trim())}
+    i++}
+  fp();cl();return out.join('')||'<p style="color:var(--fg3)">Nothing to show</p>';
+}
+function mdAct(k,arg){
+  const f=curF();if(!f||!f.md)return;if(!isMdSrc(f))toggleMd(false);
+  const t=f.ta;t.focus();const v=t.value;let s=t.selectionStart,e=t.selectionEnd;const sel=v.slice(s,e);
+  const ins=(a,b,ph)=>{const body=sel||ph;D.execCommand('insertText',false,a+body+b);if(!sel)t.setSelectionRange(s+a.length,s+a.length+ph.length)};
+  if(k==='b')ins('**','**','bold');else if(k==='i')ins('*','*','italic');else if(k==='c')ins('`','`','code');
+  else if(k==='k')ins('[',`](https://)`,'link text');
+  else if(k==='h'||k==='l'){const ls=v.lastIndexOf('\n',s-1)+1;let le=v.indexOf('\n',e);if(le<0)le=v.length;
+    const lines=v.slice(ls,le).split('\n').map((x,n)=>{x=x.replace(/^(#{1,6}\s+|[-*]\s+|\d+\.\s+)/,'');return (arg||'')+(arg==='1. '?'':'')+x});
+    t.setSelectionRange(ls,le);D.execCommand('insertText',false,lines.join('\n'))}
+}
+D.querySelectorAll('#mdtools [data-md]').forEach(b=>b.addEventListener('mousedown',e=>e.preventDefault()));
+$('#mdtools').addEventListener('click',e=>{const b=e.target.closest('[data-md]');if(!b)return;const k=b.dataset.md;
+  if(k==='h')popMenu(b,[['Heading 1',()=>{$('#hLbl').textContent='H1';mdAct('h','# ')}],['Heading 2',()=>{$('#hLbl').textContent='H2';mdAct('h','## ')}],['Heading 3',()=>{$('#hLbl').textContent='H3';mdAct('h','### ')}],['Body text',()=>{$('#hLbl').textContent='H1';mdAct('h','')}]]);
+  else if(k==='l')popMenu(b,[['Bulleted list',()=>mdAct('l','- ')],['Numbered list',()=>mdAct('l','1. ')]]);
+  else mdAct(k)});
+let pop;function popMenu(anchor,items){closeMenus();pop=document.createElement('div');pop.className='flyout show';const r=anchor.getBoundingClientRect();pop.style.left=r.left+'px';pop.style.top=(r.bottom+2)+'px';
+  items.forEach(([l,fn])=>{const d=document.createElement('div');d.className='mi';d.textContent=l;d.onclick=()=>{closeMenus();fn()};pop.appendChild(d)});D.body.appendChild(pop)}
+
+/* ---------- menus ---------- */
+const M={};
+function defs(){return {
+ file:[
+  ['New tab','Ctrl+N',()=>newTab(false)],['New window','Ctrl+Shift+N',()=>window.open(location.href,'_blank')],['New Markdown tab','',()=>newTab(true)],
+  ['Open','Ctrl+O',()=>openSearch()],
+  ['Recent','',null,{sub:()=>{const out=[];if(recent.length){out.push('#Recently opened');recent.forEach(id=>{const f=byId(id);if(f)out.push([f.label,'',()=>openFile(id)])});out.push('-')}let g='';files.forEach(f=>{if(f.group!==g){g=f.group;out.push('#'+g)}out.push([f.label,order.includes(f.id)?'open':'',()=>openFile(f.id),{chk:()=>f.id===active}])});return out}}],
+  ['Save','Ctrl+S',()=>saveFile(curF())],['Save as','Ctrl+Shift+S',()=>saveAs(curF())],['Save all','Ctrl+Alt+S',()=>saveAll()],'-',
+  ['Page setup','',()=>doPrint()],['Print','Ctrl+P',()=>doPrint()],'-',
+  ['Close tab','Ctrl+W',()=>closeTab(active)],['Close window','Ctrl+Shift+W',()=>exitApp()],['Exit','',()=>exitApp()]],
+ edit:[
+  ['Undo','Ctrl+Z',()=>edit('undo')],'-',['Cut','Ctrl+X',()=>edit('cut')],['Copy','Ctrl+C',()=>edit('copy')],['Paste','Ctrl+V',()=>edit('paste')],['Delete','Del',()=>edit('delete')],'-',
+  ['Find','Ctrl+F',()=>openFind()],['Find next','F3',()=>findStep(1)],['Find previous','Shift+F3',()=>findStep(-1)],['Replace','Ctrl+H',()=>openFind('',true)],['Go to','Ctrl+G',()=>gotoLine()],['Find in all files','Ctrl+Shift+F',()=>openSearch()],'-',
+  ['Select all','Ctrl+A',()=>edit('all')],['Time/Date','F5',()=>edit('date')],'-',['Font','',()=>openSettings()]],
+ view:[
+  ['Zoom','',null,{sub:()=>[['Zoom in','Ctrl+Plus',()=>zoom(10)],['Zoom out','Ctrl+Minus',()=>zoom(-10)],['Restore default zoom','Ctrl+0',()=>zoom(0)]]}],
+  ['Status bar','',()=>{S.status=!S.status;persist();applyView()},{chk:()=>S.status}],
+  ['Word wrap','',()=>{S.wrap=!S.wrap;persist();applyView()},{chk:()=>S.wrap}]]
+}}
+function buildMenu(el,items){
+  el.innerHTML='';
+  items.forEach(it=>{
+    if(typeof it==='string'&&it[0]==='#'){const h=document.createElement('div');h.className='mh';h.textContent=it.slice(1);el.appendChild(h);return}
+    if(it==='-'){const s=document.createElement('div');s.className='msep';el.appendChild(s);return}
+    const [label,key,fn,o={}]=it;const d=document.createElement('div');d.className='mi'+(o.sub?' sub':'')+(o.dis?' dis':'')+(o.chk&&o.chk()?' chk':'');
+    d.innerHTML=`<svg class="i ck"><use href="#i-check"/></svg><span>${esc(label)}</span>${key?`<span class="k">${key}</span>`:''}`;
+    if(o.sub){const sub=document.createElement('div');sub.className='flyout';buildMenu(sub,o.sub());d.appendChild(sub);d.addEventListener('mouseenter',()=>{buildMenu(sub,o.sub());requestAnimationFrame(()=>{const r=d.getBoundingClientRect(),H=W.innerHeight;sub.style.position='fixed';sub.style.maxHeight=(H-16)+'px';sub.style.left=Math.min(r.right+2,W.innerWidth-sub.offsetWidth-4)+'px';sub.style.top=Math.max(8,Math.min(r.top-5,H-sub.offsetHeight-8))+'px'})})}
+    else if(fn&&!o.dis)d.addEventListener('click',e=>{e.stopPropagation();closeMenus();setTimeout(fn,0)});
+    el.appendChild(d)});
+}
+let openMenu=null;
+function showMenu(name,btn){
+  closeMenus();const el=$('#menu'+name[0].toUpperCase()+name.slice(1));buildMenu(el,defs()[name]);
+  const r=btn.getBoundingClientRect();el.style.left=Math.max(4,r.left)+'px';el.style.top=(r.bottom+2)+'px';el.classList.add('show');btn.classList.add('on');openMenu=name;
+}
+function closeMenus(){D.querySelectorAll('.flyout.show').forEach(e=>e.classList.remove('show'));D.querySelectorAll('.mb.on').forEach(b=>b.classList.remove('on'));openMenu=null;if(pop){pop.remove();pop=null}$('#tips').classList.remove('show')}
+D.querySelectorAll('.mb').forEach(b=>{
+  b.addEventListener('click',e=>{e.stopPropagation();openMenu===b.dataset.menu?closeMenus():showMenu(b.dataset.menu,b)});
+  b.addEventListener('mouseenter',()=>{if(openMenu&&openMenu!==b.dataset.menu)showMenu(b.dataset.menu,b)});
+});
+onDoc('mousedown',e=>{if(!e.target.closest('.flyout,.mb,#tipsBtn,#mdtools'))closeMenus()});
+
+/* ---------- edit actions ---------- */
+function edit(a){
+  const f=curF(),t=f&&f.ta;if(!t||!isMdSrc(f))return;t.focus();
+  if(a==='undo')D.execCommand('undo');
+  else if(a==='cut')D.execCommand('cut');
+  else if(a==='copy')D.execCommand('copy');
+  else if(a==='delete'){if(t.selectionStart===t.selectionEnd)D.execCommand('forwardDelete');else D.execCommand('delete')}
+  else if(a==='all')t.select();
+  else if(a==='paste'){W.navigator.clipboard.readText().then(x=>{t.focus();D.execCommand('insertText',false,x)}).catch(()=>toast('Press Ctrl+V to paste'))}
+  else if(a==='date'){const d=new Date();D.execCommand('insertText',false,d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})+' '+(d.getMonth()+1)+'/'+d.getDate()+'/'+d.getFullYear())}
+}
+
+/* ---------- modals ---------- */
+let modal=null,modalClose=null;
+function mkModal(html,onCancel){closeModal();const b=document.createElement('div');b.className='back';b.innerHTML=html;b.addEventListener('mousedown',e=>{if(e.target===b){closeModal();onCancel&&onCancel()}});D.body.appendChild(b);modal=b;modalClose=onCancel||null;return b}
+function closeModal(){if(modal){modal.remove();modal=null;modalClose=null}}
+function askText(title,label,value,ok){return new Promise(res=>{
+  const el=mkModal(`<div class="dlg sm" role="dialog"><div class="dh">${esc(title)}</div><div class="db">${esc(label)}<input class="askin" value="${esc(value||'')}" spellcheck="false"></div><div class="df"><button class="btn pri" data-r="ok">${esc(ok||'OK')}</button><button class="btn" data-r="x">Cancel</button></div></div>`,()=>res(null));
+  const inp=el.querySelector('input');inp.focus();inp.select();
+  const done=v=>{closeModal();res(v)};
+  el.addEventListener('click',e=>{const r=e.target.closest('[data-r]');if(r)done(r.dataset.r==='ok'?inp.value:null)});
+  inp.addEventListener('keydown',e=>{if(e.key==='Enter')done(inp.value);if(e.key==='Escape')done(null)})})}
+async function gotoLine(){
+  const f=curF();if(!f||f.web)return;if(!isMdSrc(f))toggleMd(false);const t=f.ta;const total=t.value.split('\n').length;
+  const v=await askText('Go to line',`Line number (1 – ${total})`,'','Go to');if(v===null)return;
+  const n=Math.max(1,Math.min(total,parseInt(v,10)||1));const L=t.value.split('\n');let pos=0;for(let i=0;i<n-1;i++)pos+=L[i].length+1;
+  selectRange(pos,pos+L[n-1].length);
+}
+
+/* ---------- save / print / exit ---------- */
+async function saveFile(f){if(!f||f.web)return false;if(f.untitled)return saveAs(f);download(f.name,f.cur);f.orig=f.cur;updateTabMod(f);toast('Saved '+f.name);return true}
+async function saveAs(f){if(!f||f.web)return false;const n=await askText('Save as','File name',f.name,'Save');if(!n)return false;download(n,f.cur);f.name=n;if(f.untitled)f.label=n;f.orig=f.cur;renderTabs();toast('Saved '+n);return true}
+const CRC=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0}return t})();
+function crc32(b){let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=CRC[(c^b[i])&255]^(c>>>8);return(c^0xFFFFFFFF)>>>0}
+function makeZip(entries){
+  const enc=new TextEncoder(),chunks=[],cd=[];let off=0;const d=new Date();
+  const time=(d.getHours()<<11)|(d.getMinutes()<<5)|(d.getSeconds()>>1),date=((d.getFullYear()-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate();
+  entries.forEach(([name,text])=>{const n=enc.encode(name),b=enc.encode(text),crc=crc32(b);
+    const h=new DataView(new ArrayBuffer(30));h.setUint32(0,0x04034b50,true);h.setUint16(4,20,true);h.setUint16(6,0x0800,true);h.setUint16(8,0,true);h.setUint16(10,time,true);h.setUint16(12,date,true);h.setUint32(14,crc,true);h.setUint32(18,b.length,true);h.setUint32(22,b.length,true);h.setUint16(26,n.length,true);h.setUint16(28,0,true);
+    chunks.push(h.buffer,n,b);
+    const c=new DataView(new ArrayBuffer(46));c.setUint32(0,0x02014b50,true);c.setUint16(4,20,true);c.setUint16(6,20,true);c.setUint16(8,0x0800,true);c.setUint16(10,0,true);c.setUint16(12,time,true);c.setUint16(14,date,true);c.setUint32(16,crc,true);c.setUint32(20,b.length,true);c.setUint32(24,b.length,true);c.setUint16(28,n.length,true);c.setUint32(42,off,true);
+    cd.push(c.buffer,n);off+=30+n.length+b.length});
+  const cdLen=cd.reduce((a,x)=>a+x.byteLength,0);const e=new DataView(new ArrayBuffer(22));e.setUint32(0,0x06054b50,true);e.setUint16(8,entries.length,true);e.setUint16(10,entries.length,true);e.setUint32(12,cdLen,true);e.setUint32(16,off,true);
+  return new Blob([...chunks,...cd,e.buffer],{type:'application/zip'});
+}
+function saveAll(){const fs=order.map(byId).filter(f=>!f.web);const used=new Set();
+  const ents=fs.map(f=>{let p=f.path||f.name;while(used.has(p))p='copy_'+p;used.add(p);return [p,f.cur]});
+  download('Java_Notepad_files.zip',makeZip(ents));fs.forEach(f=>{f.orig=f.cur});renderTabs();toast(`Saved ${fs.length} files as a .zip`)}
+function doPrint(){const f=curF();if(f.web)return;$('#printArea').textContent=f.ta?f.ta.value:f.cur;setTimeout(()=>W.print(),30)}
+async function exitApp(){
+  for(const id of [...order]){const f=byId(id);if(f&&f.cur!==f.orig&&!f.untitled){const r=await dlgUnsaved(f);if(r==='cancel')return;if(r==='save'){if(!await saveFile(f))return}else{f.cur=f.orig;if(f.ta)f.ta.value=f.orig}}}
+  [...order].forEach(id=>{const f=byId(id);if(f.ta){f.ta.remove();f.ta=null}if(f.untitled)files.splice(idx(f),1);else recent=[id,...recent.filter(x=>x!==id)].slice(0,10)});
+  order=[];active=null;newTab(false);toast('All tabs closed — press Ctrl+O to reopen any file');
+}
+
+/* ---------- copy ---------- */
+function flash(btn,label){const l=btn.querySelector('.lbl'),old=l.textContent,ic=btn.querySelector('use');const oi=ic.getAttribute('href');btn.classList.add('done');l.textContent=label;ic.setAttribute('href','#i-check');
+  clearTimeout(btn._t);btn._t=setTimeout(()=>{btn.classList.remove('done');l.textContent=old;ic.setAttribute('href',oi)},1400)}
+async function copyCurrent(){const f=curF();if(!f)return;if(f.web){toast('Nothing to copy on the ChatGPT tab');return}const t=f.ta?f.ta.value:f.cur;const ok=await copyText(t);
+  if(ok){flash($('#copyCur'),'Copied');toast(`Copied ${f.label} · ${t.length.toLocaleString()} characters`)}else toast('Copy failed — browser blocked clipboard access')}
+async function copyAll(){const parts=files.filter(f=>!f.web&&(f.cur.length||!f.untitled)).map(f=>`// ===== ${f.path||f.name} =====\n${f.cur.replace(/\n+$/,'')}\n`);
+  const text=parts.join('\n\n');const ok=await copyText(text);
+  if(ok){flash($('#copyAll'),'Copied all');toast(`Copied all ${parts.length} files · ${kb(text.length)}`)}else toast('Copy failed — browser blocked clipboard access')}
+$('#copyCur').onclick=copyCurrent;$('#copyAll').onclick=copyAll;
+
+/* ---------- mirror / find ---------- */
+const F={open:false,q:'',cs:false,re:false,matches:[],cur:-1,bad:false,showRep:false};
+let ft;
+function buildRe(q,cs,re,g=true){if(!q)return null;try{return new RegExp(re?q:q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),(g?'g':'')+(cs?'':'i')+'m')}catch(e){return 'bad'}}
+function computeMatches(){
+  F.matches=[];F.bad=false;const t=curTA();if(!F.open||!t||!isMdSrc(curF()))return;
+  const re=buildRe(F.q,F.cs,F.re);if(re==='bad'){F.bad=true;return}if(!re)return;
+  const v=t.value;let m;while((m=re.exec(v))&&F.matches.length<5000){if(!m[0].length){re.lastIndex++;continue}F.matches.push([m.index,m.index+m[0].length])}
+}
+function pickCur(){const t=curTA();if(!F.matches.length){F.cur=-1;return}const s=t?t.selectionStart:0;let i=F.matches.findIndex(m=>m[0]>=s);F.cur=i<0?0:i}
+function renderMirror(){
+  const t=curTA();
+  if(!F.open||!t||!F.matches.length||!isMdSrc(curF())){mirror.style.display='none';mirror.innerHTML='';return}
+  const v=t.value;let h='',last=0;
+  F.matches.forEach((m,i)=>{h+=esc(v.slice(last,m[0]))+`<mark${i===F.cur?' class="cur"':''}>`+esc(v.slice(m[0],m[1]))+'</mark>';last=m[1]});
+  mirror.innerHTML=h+esc(v.slice(last))+'​';mirror.style.display='block';syncScroll();
+}
+function revealIn(pos,end){
+  const t=curTA();if(!t)return;
+  mirror.style.display='block';mirror.style.visibility='hidden';
+  const v=t.value;mirror.innerHTML=esc(v.slice(0,pos))+'<span id="rv">'+esc(v.slice(pos,Math.max(end,pos+1)))+'</span>'+esc(v.slice(Math.max(end,pos+1)))+'​';
+  const sp=mirror.querySelector('#rv');const top=sp.offsetTop,left=sp.offsetLeft,h=sp.offsetHeight;
+  mirror.style.visibility='';
+  const vh=t.clientHeight;
+  if(top<t.scrollTop+h||top>t.scrollTop+vh-h*3)t.scrollTop=Math.max(0,top-vh/3);
+  if(!S.wrap){const vw=t.clientWidth;if(left<t.scrollLeft||left>t.scrollLeft+vw-80)t.scrollLeft=Math.max(0,left-vw/3)}
+  renderMirror();
+}
+function selectRange(s,e){const f=curF();if(!f)return;if(!isMdSrc(f))toggleMd(false);const t=ensureTA(f);t.setSelectionRange(s,e);revealIn(s,e);if(!F.open||D.activeElement!==$('#fIn'))t.focus({preventScroll:true});updateStatus()}
+function updateFindUI(){
+  const c=$('#fCnt');$('#fIn').classList.toggle('bad',F.bad);
+  c.textContent=F.bad?'Invalid':!F.q?'':F.matches.length?`${F.cur+1} of ${F.matches.length}${F.matches.length>=5000?'+':''}`:'No results';
+  $('#fCase').classList.toggle('on',F.cs);$('#fRe').classList.toggle('on',F.re);
+}
+function openFind(q,rep,o={}){
+  const f=curF();if(!f||f.web)return;if(!isMdSrc(f))toggleMd(false);
+  const t=ensureTA(f);F.open=true;$('#find').hidden=false;
+  if(typeof q==='string'&&q!==''){F.q=q}else if(t.selectionEnd>t.selectionStart&&t.value.slice(t.selectionStart,t.selectionEnd).indexOf('\n')<0&&!o.keep){F.q=t.value.slice(t.selectionStart,t.selectionEnd)}
+  if(o.cs!==undefined)F.cs=o.cs;if(o.re!==undefined)F.re=o.re;
+  if(rep!==undefined)F.showRep=!!rep;$('#fRep').hidden=!F.showRep;$('#fTog svg').style.transform=F.showRep?'rotate(90deg)':'';
+  $('#fIn').value=F.q;computeMatches();pickCur();renderMirror();updateFindUI();
+  if(o.focus!==false){$('#fIn').focus();$('#fIn').select()}
+}
+function closeFind(){if(!F.open)return;F.open=false;$('#find').hidden=true;F.matches=[];renderMirror();focusEditor()}
+function scheduleFind(){clearTimeout(ft);ft=setTimeout(()=>{const t=curTA();const s=t?t.selectionStart:0;computeMatches();const i=F.matches.findIndex(m=>m[0]>=s);F.cur=F.matches.length?(i<0?0:i):-1;renderMirror();updateFindUI()},120)}
+function findStep(d){
+  if(!F.open){openFind();return}
+  if(F.bad||!F.matches.length)return;
+  const t=curTA();const s=t.selectionStart,e=t.selectionEnd;let i;
+  if(d>0){const on=F.matches.some(m=>m[0]===s&&m[1]===e);const from=on?e:s;i=F.matches.findIndex(m=>m[0]>=from);if(i<0)i=0}
+  else{i=-1;for(let k=F.matches.length-1;k>=0;k--)if(F.matches[k][0]<s){i=k;break}if(i<0)i=F.matches.length-1}
+  F.cur=i;const m=F.matches[i];t.setSelectionRange(m[0],m[1]);revealIn(m[0],m[1]);updateFindUI();updateStatus();
+}
+function replaceOne(){
+  const t=curTA();if(!t||!F.matches.length)return;let i=F.cur>=0?F.cur:0;const [s,e]=F.matches[i];
+  const re=buildRe(F.q,F.cs,F.re,false);const RT=$('#fRin').value;const rep=F.re?t.value.slice(s,e).replace(re,RT):RT;
+  t.focus();t.setSelectionRange(s,e);D.execCommand('insertText',false,rep);
+  clearTimeout(ft);computeMatches();const j=F.matches.findIndex(m=>m[0]>=s+rep.length);F.cur=F.matches.length?(j<0?0:j):-1;
+  if(F.cur>=0){const m=F.matches[F.cur];t.setSelectionRange(m[0],m[1]);revealIn(m[0],m[1])}else renderMirror();
+  updateFindUI();$('#fRin').focus();
+}
+function replaceAll(){
+  const t=curTA();if(!t||!F.matches.length)return;const n=F.matches.length;const re=buildRe(F.q,F.cs,F.re);
+  const RT=$('#fRin').value;const nv=F.re?t.value.replace(re,RT):t.value.replace(re,()=>RT);
+  t.focus();t.select();D.execCommand('insertText',false,nv);clearTimeout(ft);computeMatches();pickCur();renderMirror();updateFindUI();toast(`Replaced ${n} occurrence${n===1?'':'s'}`);$('#fRin').focus();
+}
+$('#fIn').addEventListener('input',e=>{F.q=e.target.value;computeMatches();pickCur();renderMirror();updateFindUI();if(F.matches.length&&F.cur>=0){const m=F.matches[F.cur];const t=curTA();t.setSelectionRange(m[0],m[1]);revealIn(m[0],m[1])}});
+$('#fIn').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();findStep(e.shiftKey?-1:1)}else if(e.key==='Escape'){e.preventDefault();closeFind()}
+  else if(e.altKey&&e.key.toLowerCase()==='c'){e.preventDefault();$('#fCase').click()}else if(e.altKey&&e.key.toLowerCase()==='r'){e.preventDefault();$('#fRe').click()}});
+$('#fRin').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();replaceOne()}else if(e.key==='Escape'){closeFind()}});
+$('#fCase').onclick=()=>{F.cs=!F.cs;computeMatches();pickCur();renderMirror();updateFindUI()};
+$('#fRe').onclick=()=>{F.re=!F.re;computeMatches();pickCur();renderMirror();updateFindUI()};
+$('#fPrev').onclick=()=>findStep(-1);$('#fNext').onclick=()=>findStep(1);$('#fClose').onclick=closeFind;
+$('#fTog').onclick=()=>openFind(undefined,!F.showRep,{keep:true});
+$('#fRone').onclick=replaceOne;$('#fRall').onclick=replaceAll;
+
+/* ---------- search all files (File → Open) ---------- */
+function openSearch(initial){
+  const st={q:initial||'',cs:false,re:false,rows:[],sel:0};
+  const el=mkModal(`<div class="dlg open" role="dialog" aria-label="Open — search files and code"><div class="dh"><span>Open</span><button class="icobtn" data-x aria-label="Close"><svg class="i"><use href="#i-x"/></svg></button></div>
+   <div class="sbox"><svg class="i"><use href="#i-search"/></svg><input id="sq" placeholder="Search file names and code across all ${files.length} files…" spellcheck="false" autocomplete="off"><button class="tgl" data-t="cs" title="Match case">Aa</button><button class="tgl" data-t="re" title="Regular expression">.*</button></div>
+   <div class="meta" id="smeta"></div><div class="results" id="sres" tabindex="-1"></div></div>`);
+  const inp=el.querySelector('#sq'),res=el.querySelector('#sres'),meta=el.querySelector('#smeta');inp.value=st.q;
+  const hl=(text,re)=>{if(!re||re==='bad')return esc(text);let o='',last=0,m;re.lastIndex=0;let n=0;while((m=re.exec(text))&&n++<20){if(!m[0].length){re.lastIndex++;continue}o+=esc(text.slice(last,m.index))+'<mark>'+esc(m[0])+'</mark>';last=m.index+m[0].length}return o+esc(text.slice(last))};
+  function run(){
+    const q=st.q;st.rows=[];let h='',ri=0;
+    const re=q?buildRe(q,st.cs,st.re):null;
+    el.querySelectorAll('.tgl').forEach(b=>b.classList.toggle('on',st[b.dataset.t]));
+    if(re==='bad'){meta.textContent='Invalid regular expression';res.innerHTML='';return}
+    const fileRow=(f,name)=>{st.rows.push({t:'f',f});return `<div class="r" data-i="${ri++}"><svg class="i" style="color:var(--fg3)"><use href="#i-doc"/></svg><span class="nm">${name}</span><span class="pth">${esc(f.path||'(unsaved)')}</span>${order.includes(f.id)?'<span class="tag">open</span>':''}</div>`};
+    if(!q){
+      let g='';files.forEach(f=>{if(f.group!==g){g=f.group;h+=`<div class="gh">${esc(g)}</div>`}h+=fileRow(f,esc(f.label))});
+      meta.textContent=`${files.length} files — type to search names and code`;
+    }else{
+      let hits=0,fh=0,nameHits=0;const CAP=400;
+      const nre=buildRe(q,st.cs,st.re);
+      files.forEach(f=>{
+        const nm=nre&&(nre.lastIndex=0,nre.test(f.label+' '+(f.path||'')));
+        const v=f.cur;const lines=v.split('\n');const lh=[];let off=0,more=0;
+        for(let i=0;i<lines.length;i++){const L=lines[i];re.lastIndex=0;const m=re.exec(L);
+          if(m&&m[0].length){ if(lh.length<8&&hits<CAP){lh.push({ln:i+1,L,pos:off+m.index,len:m[0].length,col:m.index});hits++}else more++ }
+          off+=L.length+1}
+        const total=lh.length+more;
+        if(nm||total){ if(nm)nameHits++; if(total)fh++;
+          nre.lastIndex=0;h+=fileRow(f,hl(f.label,nre));
+          lh.forEach(x=>{st.rows.push({t:'h',f,pos:x.pos,len:x.len});
+            let s=x.L,c=x.col,pre='';if(c>50){s=s.slice(c-40);pre='…';}s=s.slice(0,170);
+            const sre=buildRe(q,st.cs,st.re);
+            h+=`<div class="r hit" data-i="${ri++}"><span class="ln">${x.ln}</span><span class="tx2">${pre}${hl(s.replace(/\t/g,'  '),sre)}</span></div>`});
+          if(more){st.rows.push({t:'m',f,pos:lh[0]?lh[0].pos:0,len:lh[0]?lh[0].len:0});h+=`<div class="r more" data-i="${ri++}">+ ${more} more match${more===1?'':'es'} in this file — open with find</div>`}
+        }});
+      meta.textContent=hits||nameHits?`${hits>=CAP?CAP+'+':hits} code match${hits===1?'':'es'} in ${fh} file${fh===1?'':'s'}${nameHits?` · ${nameHits} name match${nameHits===1?'':'es'}`:''}`:'No matches';
+      if(!h)h='<div class="empty">No files or code match “'+esc(q)+'”.</div>';
+    }
+    res.innerHTML=h;st.sel=Math.min(st.sel,Math.max(0,st.rows.length-1));mark();
+  }
+  function mark(){res.querySelectorAll('.r.sel').forEach(x=>x.classList.remove('sel'));const r=res.querySelector(`[data-i="${st.sel}"]`);if(r){r.classList.add('sel');const rt=r.offsetTop,rb=rt+r.offsetHeight;if(rt<res.scrollTop+30)res.scrollTop=Math.max(0,rt-40);else if(rb>res.scrollTop+res.clientHeight-8)res.scrollTop=rb-res.clientHeight+16}}
+  function choose(i){const r=st.rows[i];if(!r)return;const q=st.q;
+    if(r.t==='f')openFile(r.f.id);
+    else openFile(r.f.id,{pos:r.pos,len:r.len,query:q,cs:st.cs,re:st.re})}
+  inp.addEventListener('input',()=>{st.q=inp.value;st.sel=0;run();res.scrollTop=0});
+  inp.addEventListener('keydown',e=>{
+    if(e.key==='ArrowDown'){e.preventDefault();st.sel=Math.min(st.rows.length-1,st.sel+1);mark()}
+    else if(e.key==='ArrowUp'){e.preventDefault();st.sel=Math.max(0,st.sel-1);mark()}
+    else if(e.key==='PageDown'){e.preventDefault();st.sel=Math.min(st.rows.length-1,st.sel+8);mark()}
+    else if(e.key==='PageUp'){e.preventDefault();st.sel=Math.max(0,st.sel-8);mark()}
+    else if(e.key==='Enter'){e.preventDefault();choose(st.sel)}
+    else if(e.key==='Escape'){closeModal();focusEditor()}
+    else if(e.altKey&&e.key.toLowerCase()==='c'){e.preventDefault();st.cs=!st.cs;run()}
+    else if(e.altKey&&e.key.toLowerCase()==='r'){e.preventDefault();st.re=!st.re;run()}});
+  el.addEventListener('click',e=>{
+    if(e.target.closest('[data-x]')){closeModal();return}
+    const t=e.target.closest('.tgl');if(t){st[t.dataset.t]=!st[t.dataset.t];run();inp.focus();return}
+    const r=e.target.closest('.r');if(r)choose(+r.dataset.i)});
+  res.addEventListener('mousemove',e=>{const r=e.target.closest('.r');if(r&&+r.dataset.i!==st.sel){st.sel=+r.dataset.i;mark()}});
+  run();inp.focus();inp.select();
+}
+function openFile(id,o={}){
+  closeModal();const f=byId(id);if(!f)return;
+  recent=[id,...recent.filter(x=>x!==id)].slice(0,10);
+  const was=active===id;
+  if(!was||!order.includes(id))activate(id,{focus:false});
+  if(o.pos!==undefined){
+    if(!isMdSrc(f))toggleMd(false);
+    const t=ensureTA(f);
+    if(o.query){F.q=o.query;F.cs=!!o.cs;F.re=!!o.re;F.open=true;$('#find').hidden=false;$('#fRep').hidden=!F.showRep;$('#fIn').value=F.q;computeMatches();
+      const i=F.matches.findIndex(m=>m[0]===o.pos);F.cur=i>=0?i:0;updateFindUI()}
+    t.setSelectionRange(o.pos,o.pos+o.len);revealIn(o.pos,o.pos+o.len);t.focus({preventScroll:true});updateStatus();
+  }else focusEditor();
+}
+
+/* ---------- settings ---------- */
+function openSettings(){closeMenus();$('#settings').classList.add('on')}
+function closeSettings(){$('#settings').classList.remove('on');focusEditor()}
+$('#setBtn').onclick=e=>{e.stopPropagation();$('#settings').classList.contains('on')?closeSettings():openSettings()};
+$('#setBack').onclick=closeSettings;
+$('#selTheme').onchange=e=>{S.theme=e.target.value;persist();applyTheme()};
+$('#selFont').onchange=e=>{S.font=e.target.value;persist();applyView()};
+$('#selSize').onchange=e=>{S.size=+e.target.value;persist();applyView()};
+$('#swWrap').onclick=()=>{S.wrap=!S.wrap;persist();applyView()};
+$('#swStat').onclick=()=>{S.status=!S.status;persist();applyView()};
+
+/* ---------- chrome buttons ---------- */
+$('#newtab').onclick=()=>newTab(false);
+$('#tipsBtn').onclick=e=>{e.stopPropagation();const open=$('#tips').classList.contains('show');closeMenus();if(!open){$('#tips').classList.add('show');$('#nd').style.display='none';store.set('tipsSeen',1)}};
+if(store.get('tipsSeen',0))$('#nd').style.display='none';
+$('#wMax').onclick=()=>{D.fullscreenElement?D.exitFullscreen():D.documentElement.requestFullscreen?.().catch(()=>{})};
+$('#wCls').onclick=()=>exitApp();
+$('#wMin').onclick=()=>toast('Minimize is handled by your browser window');
+
+/* ---------- keyboard ---------- */
+onDoc('keydown',e=>{
+  const k=e.key,c=e.ctrlKey||e.metaKey,s=e.shiftKey,a=e.altKey;
+  if(k==='Escape'){if(modal){const cb=modalClose;closeModal();cb&&cb();focusEditor();return}if(openMenu||pop||$('#tips').classList.contains('show')){closeMenus();return}if($('#settings').classList.contains('on')){closeSettings();return}if(F.open&&(D.activeElement===$('#fIn')||D.activeElement===$('#fRin'))){closeFind();return}}
+  if(modal&&!(c&&k==='o'))return;
+  if(c&&!a&&k.toLowerCase()==='o'){e.preventDefault();openSearch()}
+  else if(c&&s&&k.toLowerCase()==='f'){e.preventDefault();openSearch(curTA()&&curTA().selectionEnd>curTA().selectionStart?curTA().value.slice(curTA().selectionStart,curTA().selectionEnd).split('\n')[0]:'')}
+  else if(c&&!s&&k.toLowerCase()==='f'){e.preventDefault();openFind()}
+  else if(c&&k.toLowerCase()==='h'){e.preventDefault();openFind('',true)}
+  else if(c&&k.toLowerCase()==='g'){e.preventDefault();gotoLine()}
+  else if(c&&s&&k.toLowerCase()==='c'){e.preventDefault();copyCurrent()}
+  else if(c&&s&&k.toLowerCase()==='a'){e.preventDefault();copyAll()}
+  else if(c&&a&&k.toLowerCase()==='s'){e.preventDefault();saveAll()}
+  else if(c&&s&&k.toLowerCase()==='s'){e.preventDefault();saveAs(curF())}
+  else if(c&&k.toLowerCase()==='s'){e.preventDefault();saveFile(curF())}
+  else if(c&&k.toLowerCase()==='p'){e.preventDefault();doPrint()}
+  else if(c&&s&&k.toLowerCase()==='n'){e.preventDefault();window.open(location.href,'_blank')}
+  else if(c&&!s&&k.toLowerCase()==='n'){e.preventDefault();newTab(false)}
+  else if(c&&k.toLowerCase()==='w'){e.preventDefault();s?exitApp():closeTab(active)}
+  else if(c&&k==='Tab'){e.preventDefault();const i=order.indexOf(active);activate(order[(i+(s?-1:1)+order.length)%order.length])}
+  else if(c&&(k==='+'||k==='=')){e.preventDefault();zoom(10)}
+  else if(c&&(k==='-'||k==='_')){e.preventDefault();zoom(-10)}
+  else if(c&&k==='0'){e.preventDefault();zoom(0)}
+  else if(k==='F3'){e.preventDefault();findStep(s?-1:1)}
+  else if(k==='F5'){e.preventDefault();edit('date')}
+},true);
+
+
+/* ---------- picture in picture ---------- */
+const PIPSEL=['#app','#menuFile','#menuEdit','#menuView','#toast','#printArea'];
+const pipEls=()=>[D.querySelector('body > svg'),...PIPSEL.map(x=>D.querySelector(x))];
+function rebind(from,to){docL.forEach(([t,fn,c])=>{from.removeEventListener(t,fn,c);to.addEventListener(t,fn,c)})}
+async function togglePip(){
+  if(pipWin){pipWin.close();return}
+  let w=null;
+  try{w=window.documentPictureInPicture?await documentPictureInPicture.requestWindow({width:720,height:480}):window.open('','np_pip','popup,width=720,height=480')}catch(e){w=null}
+  if(!w){toast('Your browser blocked the floating window');return}
+  closeMenus();closeModal();
+  const d=w.document;
+  if(!window.documentPictureInPicture){d.open();d.write('<!doctype html><html lang="en"><head></head><body></body></html>');d.close()}
+  d.title='Notepad';
+  d.head.insertAdjacentHTML('afterbegin','<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">');
+  document.querySelectorAll('style').forEach(st=>d.head.appendChild(st.cloneNode(true)));
+  const els=pipEls();const f0=curF();if(f0&&f0.ta)f0.scroll=[f0.ta.scrollTop,f0.ta.scrollLeft];
+  els.forEach(e=>e&&d.body.appendChild(e));
+  rebind(document,d);D=d;W=w;pipWin=w;
+  document.getElementById('pipHold').hidden=false;
+  w.addEventListener('resize',()=>{chevs();revealTab()});
+  w.addEventListener('pagehide',()=>{
+    if(pipWin!==w)return;pipWin=null;
+    const back=pipEls();const data=document.getElementById('data');
+    back.forEach(e=>e&&document.body.insertBefore(e,data));
+    rebind(d,document);D=document;W=window;
+    document.getElementById('pipHold').hidden=true;
+    applyTheme();applyView();renderTabs();const f=curF();if(f&&f.ta){f.ta.scrollTop=f.scroll[0]}
+  });
+  applyTheme();applyView();renderTabs();
+  const f=curF();if(f&&f.ta){f.ta.scrollTop=f.scroll[0];f.ta.scrollLeft=f.scroll[1]}
+  focusEditor();
+}
+$('#pipBtn').onclick=togglePip;document.getElementById('pipBack').onclick=()=>pipWin&&pipWin.close();
+
+const GPT='https://chatgpt.com/';
+$('#gptWin').onclick=()=>{const w=480,h=Math.min(820,(screen.availHeight||800)-60),l=(screen.availLeft||0)+(screen.availWidth||1200)-w-20;W.open(GPT,'np_chatgpt',`popup,noopener,noreferrer,width=${w},height=${h},left=${l},top=30`)};
+$('#gptTab').onclick=()=>{W.open(GPT,'_blank','noopener,noreferrer')};
+/* ---------- boot ---------- */
+applyTheme();applyView();
+activate(active,{focus:false});
+})();
+</script>
+</body>
+</html>
